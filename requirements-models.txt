@@ -1,0 +1,6 @@
+# Optional. Install in an isolated virtual environment after reviewing model licenses.
+transformers>=4.45,<5
+torch>=2.4,<3
+scipy>=1.13,<2
+sentencepiece>=0.2,<1
+demucs>=4,<5

@@ -1,0 +1,13 @@
+services:
+  creativity:
+    build: .
+    ports: ['127.0.0.1:8096:8096']
+    volumes: ['creativity-data:/app/data']
+    env_file:
+      - path: .env.local
+        required: false
+    environment:
+      COOKIE_SECURE: '1'
+    restart: unless-stopped
+volumes:
+  creativity-data:

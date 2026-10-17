@@ -1,0 +1,221 @@
+---
+- name: Deploy AfricanCreativity to a Debian host
+  hosts: all
+  become: true
+  vars:
+    creativity_repo: https://github.com/olamidebello/africancreativity.git
+    creativity_revision: main
+    creativity_source: /opt/africancreativity-source
+    creativity_install: /opt/africancreativity
+    creativity_port: 8096
+    creativity_admin: platformadmin
+    creativity_ai_env_file: ''
+    creativity_secure_cookie: true
+  vars_prompt:
+    - name: creativity_admin_password
+      prompt: Platform administrator password (12+ characters; preserved on reruns)
+      private: true
+      confirm: true
+  tasks:
+    - name: Validate paths and configuration
+      ansible.builtin.assert:
+        that:
+          - creativity_install is match('^/opt/[A-Za-z0-9_-]+$')
+          - creativity_source is match('^/opt/[A-Za-z0-9_-]+$')
+          - creativity_source != creativity_install
+          - creativity_admin_password | length >= 12
+          - creativity_port | int >= 1024
+          - creativity_port | int <= 65535
+    - name: Install runtime packages
+      ansible.builtin.apt:
+        name: [python3, git, ffmpeg, fonts-dejavu-core]
+        state: present
+        update_cache: true
+    - name: Pull reviewed source without discarding edits
+      ansible.builtin.git:
+        repo: '{{ creativity_repo }}'
+        dest: '{{ creativity_source }}'
+        version: '{{ creativity_revision }}'
+        force: false
+    - name: Run isolated integration tests
+      ansible.builtin.command:
+        argv: [python3, -m, unittest, discover, -s, tests, -v]
+        chdir: '{{ creativity_source }}'
+      changed_when: false
+    - name: Create unprivileged service identity
+      ansible.builtin.user:
+        name: africancreativity
+        system: true
+        create_home: false
+        shell: /usr/sbin/nologin
+    - name: Create install directory
+      ansible.builtin.file:
+        path: '{{ creativity_install }}'
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+    - name: Create protected backup directory
+      ansible.builtin.file:
+        path: /var/backups/africancreativity
+        state: directory
+        mode: '0700'
+    - name: Discover existing service
+      ansible.builtin.stat:
+        path: /etc/systemd/system/africancreativity.service
+      register: existing_service
+    - name: Install and verify release
+      block:
+        - name: Back up previous service definition
+          ansible.builtin.copy:
+            src: /etc/systemd/system/africancreativity.service
+            dest: '/var/backups/africancreativity/service-{{ ansible_date_time.iso8601_basic_short }}.unit'
+            remote_src: true
+            mode: '0600'
+          when: existing_service.stat.exists
+        - name: Stop existing process before consistent backup
+          ansible.builtin.systemd:
+            name: africancreativity
+            state: stopped
+          when: existing_service.stat.exists
+        - name: Back up installation and database together
+          ansible.builtin.command:
+            argv: [tar, -czf, '/var/backups/africancreativity/before-{{ ansible_date_time.iso8601_basic_short }}.tar.gz.partial', -C, '{{ creativity_install }}', .]
+        - name: Commit complete recovery archive
+          ansible.builtin.command:
+            argv: [mv, '/var/backups/africancreativity/before-{{ ansible_date_time.iso8601_basic_short }}.tar.gz.partial', '/var/backups/africancreativity/before-{{ ansible_date_time.iso8601_basic_short }}.tar.gz']
+        - name: Install application modules
+          ansible.builtin.copy:
+            src: '{{ creativity_source }}/{{ item }}'
+            dest: '{{ creativity_install }}/{{ item }}'
+            remote_src: true
+            owner: root
+            group: root
+            mode: '0644'
+          loop: [server.py, database.py, providers.py, jobs.py, media.py]
+        - name: Install browser assets and bootstrap helper
+          ansible.builtin.copy:
+            src: '{{ creativity_source }}/{{ item }}/'
+            dest: '{{ creativity_install }}/{{ item }}/'
+            remote_src: true
+            owner: root
+            group: root
+            directory_mode: '0755'
+            mode: '0644'
+          loop: [static, deploy]
+        - name: Create protected runtime data
+          ansible.builtin.file:
+            path: '{{ creativity_install }}/data'
+            state: directory
+            owner: africancreativity
+            group: africancreativity
+            mode: '0700'
+        - name: Bootstrap platform account without logging password
+          ansible.builtin.command:
+            argv: [python3, '{{ creativity_install }}/deploy/bootstrap.py', '{{ creativity_admin }}']
+            stdin: '{{ creativity_admin_password }}'
+          environment:
+            CREATIVITY_DATA: '{{ creativity_install }}/data'
+          no_log: true
+        - name: Assign data ownership
+          ansible.builtin.file:
+            path: '{{ creativity_install }}/data'
+            owner: africancreativity
+            group: africancreativity
+            recurse: true
+        - name: Create protected configuration directory
+          ansible.builtin.file:
+            path: /etc/africancreativity
+            state: directory
+            mode: '0700'
+        - name: Install explicitly selected AI configuration
+          ansible.builtin.copy:
+            src: '{{ creativity_ai_env_file }}'
+            dest: /etc/africancreativity/ai.env
+            owner: root
+            group: root
+            mode: '0600'
+          when: creativity_ai_env_file | length > 0
+          no_log: true
+        - name: Install hardened service
+          ansible.builtin.copy:
+            dest: /etc/systemd/system/africancreativity.service
+            mode: '0644'
+            content: |
+              [Unit]
+              Description=AfricanCreativity music and video workspace
+              After=network.target
+              [Service]
+              User=africancreativity
+              Group=africancreativity
+              WorkingDirectory={{ creativity_install }}
+              Environment=CREATIVITY_DATA={{ creativity_install }}/data
+              Environment=COOKIE_SECURE={{ creativity_secure_cookie | ternary('1','0') }}
+              Environment=HF_HOME={{ creativity_install }}/data/model-cache
+              EnvironmentFile=-/etc/africancreativity/ai.env
+              ExecStart=/usr/bin/python3 {{ creativity_install }}/server.py --host 127.0.0.1 --port {{ creativity_port }}
+              Restart=on-failure
+              RestartSec=5
+              UMask=0077
+              NoNewPrivileges=true
+              PrivateTmp=true
+              ProtectSystem=strict
+              ProtectHome=true
+              ReadWritePaths={{ creativity_install }}/data
+              [Install]
+              WantedBy=multi-user.target
+        - name: Start app and worker
+          ansible.builtin.systemd:
+            name: africancreativity
+            state: restarted
+            enabled: true
+            daemon_reload: true
+        - name: Verify health
+          ansible.builtin.uri:
+            url: 'http://127.0.0.1:{{ creativity_port }}/health'
+            status_code: 200
+          register: health
+          until: health.status | default(0) == 200
+          retries: 15
+          delay: 2
+      rescue:
+        - name: Stop failed release before recovery
+          ansible.builtin.systemd:
+            name: africancreativity
+            state: stopped
+          failed_when: false
+        - name: Check recovery archive
+          ansible.builtin.stat:
+            path: /var/backups/africancreativity/before-{{ ansible_date_time.iso8601_basic_short }}.tar.gz
+          register: recovery_archive
+        - name: Check failed release data directory
+          ansible.builtin.stat:
+            path: '{{ creativity_install }}/data'
+          register: failed_data
+        - name: Preserve failed data separately to avoid stale WAL during restore
+          ansible.builtin.command:
+            argv: [mv, '{{ creativity_install }}/data', '/var/backups/africancreativity/failed-data-{{ ansible_date_time.iso8601_basic_short }}']
+          when: recovery_archive.stat.exists and failed_data.stat.exists
+        - name: Restore protected source and data backup
+          ansible.builtin.command:
+            argv: [tar, -xzf, '/var/backups/africancreativity/before-{{ ansible_date_time.iso8601_basic_short }}.tar.gz', -C, '{{ creativity_install }}']
+          when: recovery_archive.stat.exists
+        - name: Restore previous service definition
+          ansible.builtin.copy:
+            src: '/var/backups/africancreativity/service-{{ ansible_date_time.iso8601_basic_short }}.unit'
+            dest: /etc/systemd/system/africancreativity.service
+            remote_src: true
+            mode: '0644'
+          when: existing_service.stat.exists
+        - name: Restart previous installation when it existed
+          ansible.builtin.systemd:
+            name: africancreativity
+            state: restarted
+            daemon_reload: true
+          when: existing_service.stat.exists
+        - name: Report failed release
+          ansible.builtin.fail:
+            msg: Deployment failed; backup was restored. Inspect service logs before retrying.
+    - name: Report login and proxy requirement
+      ansible.builtin.debug:
+        msg: 'Application listens on 127.0.0.1:{{ creativity_port }}. Configure an HTTPS reverse proxy for your chosen domain. Sign in as {{ creativity_admin }} with your bootstrap password; provision tenants in the GUI. Existing passwords are preserved. AI and optional GPU engines require server configuration.'

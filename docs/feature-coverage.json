@@ -1,0 +1,1696 @@
+[
+  {
+    "source": "Suno inventory",
+    "id": 1,
+    "feature": "Create",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 2,
+    "feature": "Simple",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 3,
+    "feature": "Custom",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 4,
+    "feature": "Library",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 5,
+    "feature": "Explore",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 6,
+    "feature": "Studio",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 7,
+    "feature": "Public artist profile",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 8,
+    "feature": "Account / subscription",
+    "status": "Partial",
+    "detail": "Account, team and internal credits; no paid billing/subscription checkout."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 9,
+    "feature": "Song description",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 10,
+    "feature": "Lyrics field",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 11,
+    "feature": "AI lyrics assistance",
+    "status": "Provider-dependent",
+    "detail": "Provider adapter implemented; requires an enabled, accessible provider/model and live validation."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 12,
+    "feature": "Style instructions",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 13,
+    "feature": "Prompt enhancement",
+    "status": "Provider-dependent",
+    "detail": "Provider adapter implemented; requires an enabled, accessible provider/model and live validation."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 14,
+    "feature": "Instrumental toggle",
+    "status": "Partial",
+    "detail": "Instrumental engine only; no sung-vocal toggle."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 15,
+    "feature": "Exclude controls",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 16,
+    "feature": "Voice-style guidance",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 17,
+    "feature": "Model picker",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 18,
+    "feature": "Create button",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 19,
+    "feature": "Weirdness slider",
+    "status": "Partial",
+    "detail": "Temperature control, not the proprietary Weirdness algorithm."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 20,
+    "feature": "Style Influence slider",
+    "status": "Partial",
+    "detail": "MusicGen guidance scale, not the proprietary Style Influence algorithm."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 21,
+    "feature": "Audio Influence slider",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 22,
+    "feature": "v6",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 23,
+    "feature": "v6-wild",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 24,
+    "feature": "v6-mini",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 25,
+    "feature": "Plain-language section editing",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 26,
+    "feature": "Speech with soundtrack",
+    "status": "Partial",
+    "detail": "AI narration; add soundtrack manually in Studio."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 27,
+    "feature": "Suno Sounds",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 28,
+    "feature": "Create Custom Model",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 29,
+    "feature": "Bulk custom-model upload",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 30,
+    "feature": "Custom model selection",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 31,
+    "feature": "Upload Audio",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 32,
+    "feature": "Cover Song",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 33,
+    "feature": "Extend",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 34,
+    "feature": "Reuse Prompt",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 35,
+    "feature": "Remix",
+    "status": "Implemented",
+    "detail": "Explicitly permitted public-source copies; no proprietary model remix."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 36,
+    "feature": "Sample",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 37,
+    "feature": "Mashup",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 38,
+    "feature": "Inspire",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 39,
+    "feature": "Add Vocals",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 40,
+    "feature": "Voices",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 41,
+    "feature": "Create Voice",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 42,
+    "feature": "Use Your Voice",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 43,
+    "feature": "Voice verification",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 44,
+    "feature": "Style Personas",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 45,
+    "feature": "Allow remixing",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 46,
+    "feature": "Timeline / waveform",
+    "status": "Partial",
+    "detail": "Waveform and numeric crop controls; studio audio rows, not a full DAW waveform timeline."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 47,
+    "feature": "Lyrics panel",
+    "status": "Partial",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 48,
+    "feature": "Section selection",
+    "status": "Partial",
+    "detail": "Numeric start/end ranges, not structural song-section detection."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 49,
+    "feature": "Replace Section",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 50,
+    "feature": "Quick Replace",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 51,
+    "feature": "Rewrite section lyrics",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 52,
+    "feature": "Reorder song sections",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 53,
+    "feature": "Crop",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 54,
+    "feature": "Fade In",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 55,
+    "feature": "Fade Out",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 56,
+    "feature": "Fade-length handles",
+    "status": "Partial",
+    "detail": "Numeric fade duration, not draggable handles."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 57,
+    "feature": "Tempo display",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 58,
+    "feature": "Get Stems",
+    "status": "Provider-dependent",
+    "detail": "Optional Demucs two-stem pipeline; disabled until installed."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 59,
+    "feature": "Remaster",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 60,
+    "feature": "Song list",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 61,
+    "feature": "Liked",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 62,
+    "feature": "Playlists",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 63,
+    "feature": "Hooks",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 64,
+    "feature": "Create playlist",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 65,
+    "feature": "Add to playlist",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 66,
+    "feature": "Playlist filters",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 67,
+    "feature": "Pin playlist",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 68,
+    "feature": "Multi-select",
+    "status": "Partial",
+    "detail": "Multiple media selections for ZIP; no batch project editor."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 69,
+    "feature": "Workspaces",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 70,
+    "feature": "Create Workspace",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 71,
+    "feature": "Shareable Workspaces",
+    "status": "Implemented",
+    "detail": "Tenant-local invited collaborators; no external guest accounts."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 72,
+    "feature": "Albums",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 73,
+    "feature": "Convert playlist to album",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 74,
+    "feature": "Publish album",
+    "status": "Partial",
+    "detail": "Public album metadata; member tracks require their own publication, no follower notifications."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 75,
+    "feature": "Move to Trash",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 76,
+    "feature": "Permanently delete",
+    "status": "Partial",
+    "detail": "Removes source/rendered media; retains accounting/audit/job tombstones and text results."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 77,
+    "feature": "More Actions",
+    "status": "Partial",
+    "detail": "Visible action buttons instead of an ellipsis menu."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 78,
+    "feature": "Publish",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 79,
+    "feature": "Link-only sharing",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 80,
+    "feature": "Share",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 81,
+    "feature": "Download",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 82,
+    "feature": "Download All",
+    "status": "Partial",
+    "detail": "Selected project assets in ZIP, capped at 100 MB."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 83,
+    "feature": "File-type selection",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 84,
+    "feature": "ZIP download",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 85,
+    "feature": "Get Stems Extract",
+    "status": "Provider-dependent",
+    "detail": "Provider adapter implemented; requires an enabled, accessible provider/model and live validation."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 86,
+    "feature": "Auto Split up to 12 stems",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 87,
+    "feature": "Split from Mix",
+    "status": "Partial",
+    "detail": "Optional vocals/accompaniment only; no arbitrary instrument target."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 88,
+    "feature": "Advanced Split",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 89,
+    "feature": "Split Stems in Studio",
+    "status": "Partial",
+    "detail": "Stem separation launched from Library audio editor, not clip context menu."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 90,
+    "feature": "Individual stem downloads",
+    "status": "Provider-dependent",
+    "detail": "Provider adapter implemented; requires an enabled, accessible provider/model and live validation."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 91,
+    "feature": "Open in Studio",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 92,
+    "feature": "Chat Bar",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 93,
+    "feature": "Timeline",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 94,
+    "feature": "Play Pause Stop",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 95,
+    "feature": "Record audio or MIDI",
+    "status": "Partial",
+    "detail": "Microphone recording in Library; note capture in Studio. Browser permission/device tests remain."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 96,
+    "feature": "Metronome",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 97,
+    "feature": "Loop",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 98,
+    "feature": "Follow Playhead",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 99,
+    "feature": "Clock Settings",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 100,
+    "feature": "Tempo Settings",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 101,
+    "feature": "Time Signature",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 102,
+    "feature": "Take Lanes",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 103,
+    "feature": "Commit generated take",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 104,
+    "feature": "Dismiss preview",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 105,
+    "feature": "Take up/down",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 106,
+    "feature": "Arrangement Editor",
+    "status": "Partial",
+    "detail": "Numeric arrangement controls, not a separate detailed modal DAW editor."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 107,
+    "feature": "Trim handles",
+    "status": "Partial",
+    "detail": "Numeric trim/duration, not draggable waveform handles."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 108,
+    "feature": "Loop flags",
+    "status": "Partial",
+    "detail": "Whole-arrangement loop, no arbitrary draggable loop region."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 109,
+    "feature": "Reverse",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 110,
+    "feature": "Stretch",
+    "status": "Partial",
+    "detail": "Offline speed processing, not shift-drag warp stretching."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 111,
+    "feature": "Warp markers",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 112,
+    "feature": "Quantize",
+    "status": "Partial",
+    "detail": "Grid note placement only; no timing quantize transform."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 113,
+    "feature": "Pitch",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 114,
+    "feature": "Formant",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 115,
+    "feature": "Speed",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 116,
+    "feature": "Volume",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 117,
+    "feature": "Split clip",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 118,
+    "feature": "Disable clip",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 119,
+    "feature": "Clip Info",
+    "status": "Partial",
+    "detail": "Project prompt/lyrics/metadata; no clip-specific tabbed panel."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 120,
+    "feature": "Rename clip",
+    "status": "Partial",
+    "detail": "Project title editable; existing asset/clip name controls not exposed."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 121,
+    "feature": "Fade curves",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 122,
+    "feature": "Remove FX / Get Dry",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 123,
+    "feature": "Add effect",
+    "status": "Partial",
+    "detail": "One selected effect per audio-edit form; backend validates up to eight."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 124,
+    "feature": "Compressor",
+    "status": "Partial",
+    "detail": "Basic FFmpeg compressor; no sidechain routing."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 125,
+    "feature": "EQ",
+    "status": "Partial",
+    "detail": "One 1 kHz peaking EQ amount; not a multiband visual EQ."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 126,
+    "feature": "Reverb",
+    "status": "Partial",
+    "detail": "Simple echo-based reverb, not convolution/spatial modeling."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 127,
+    "feature": "Convolution",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 128,
+    "feature": "Delay",
+    "status": "Partial",
+    "detail": "Fixed-delay echo with adjustable amount."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 129,
+    "feature": "Distortion",
+    "status": "Partial",
+    "detail": "Soft clipping with adjustable amount."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 130,
+    "feature": "Gate",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 131,
+    "feature": "Effects chain",
+    "status": "Partial",
+    "detail": "Backend ordered effect array; GUI selects one effect."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 132,
+    "feature": "Bypass",
+    "status": "Partial",
+    "detail": "Backend supports effect bypass; no GUI chain bypass switch."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 133,
+    "feature": "Expand effect",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 134,
+    "feature": "Save/load effect presets",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 135,
+    "feature": "Create plugin with chat",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 136,
+    "feature": "Build plugin",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 137,
+    "feature": "Revise plugin",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 138,
+    "feature": "Save plugin",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 139,
+    "feature": "Automation",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 140,
+    "feature": "MIDI Learn",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 141,
+    "feature": "MIDI tracks",
+    "status": "Partial",
+    "detail": "One note lane and imported MIDI notes, not multiple editable MIDI tracks."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 142,
+    "feature": "Piano roll",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 143,
+    "feature": "Velocity editing",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 144,
+    "feature": "Pitch bend / modulation",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 145,
+    "feature": "Key Scale assist",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 146,
+    "feature": "Musical typing",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 147,
+    "feature": "On-screen keyboard",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 148,
+    "feature": "Chord modes",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 149,
+    "feature": "Arpeggiator",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 150,
+    "feature": "External MIDI input",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 151,
+    "feature": "Audio-to-MIDI",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 152,
+    "feature": "MIDI-to-generated audio",
+    "status": "Partial",
+    "detail": "Local synthesizer renders notes; not a generative model interpretation."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 153,
+    "feature": "Wavetable synth",
+    "status": "Partial",
+    "detail": "Four oscillator waveforms, not a wavetable engine."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 154,
+    "feature": "Synth presets",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 155,
+    "feature": "Oscillators filters envelopes LFOs",
+    "status": "Partial",
+    "detail": "Oscillator waveform and fixed note envelope only; no filters/LFO editor."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 156,
+    "feature": "Modulation matrix",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 157,
+    "feature": "Library dock",
+    "status": "Partial",
+    "detail": "Library panel is always visible in Studio; no dock toggle."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 158,
+    "feature": "All Songs Liked Stems Uploads dock filters",
+    "status": "Partial",
+    "detail": "Audio resources from accessible projects; no dock category tabs."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 159,
+    "feature": "Workspaces Studio Projects dock",
+    "status": "Partial",
+    "detail": "Saved workspaces/projects via navigation, not dock tabs."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 160,
+    "feature": "Search filters in dock",
+    "status": "Partial",
+    "detail": "Search in Library; no Studio dock filtering."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 161,
+    "feature": "Audition",
+    "status": "Partial",
+    "detail": "Preview in Library; Studio dock has Add, not individual audition controls."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 162,
+    "feature": "Song Details",
+    "status": "Partial",
+    "detail": "Project details; no dedicated dock Song Details panel."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 163,
+    "feature": "Stems tab",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 164,
+    "feature": "Insert all stems",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 165,
+    "feature": "Notes tab",
+    "status": "Partial",
+    "detail": "Project notes, not per-song dock tabs."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 166,
+    "feature": "Drag asset to timeline",
+    "status": "Implemented",
+    "detail": "Add button; drag-to-insert not implemented."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 167,
+    "feature": "Drag asset to chat",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 168,
+    "feature": "Mini-player",
+    "status": "Partial",
+    "detail": "Native media player in project details, not a persistent dock mini-player."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 169,
+    "feature": "Like/dislike previews",
+    "status": "Partial",
+    "detail": "Like a project; dislike/preview ratings not implemented."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 170,
+    "feature": "Export dropdown",
+    "status": "Partial",
+    "detail": "Direct export buttons instead of a dropdown."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 171,
+    "feature": "Full-song export",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 172,
+    "feature": "Selected-range export",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 173,
+    "feature": "Multitrack export",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 174,
+    "feature": "WAV MP3 export",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Suno inventory",
+    "id": 175,
+    "feature": "Individual stem WAV export",
+    "status": "Provider-dependent",
+    "detail": "Provider adapter implemented; requires an enabled, accessible provider/model and live validation."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 1,
+    "feature": "Home",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 2,
+    "feature": "Music Video Lab",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 3,
+    "feature": "Music Lab",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 4,
+    "feature": "Blog",
+    "status": "Partial",
+    "detail": "Creator guide/tutorial page; no blog publishing system."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 5,
+    "feature": "Language selector",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 6,
+    "feature": "Free Trial",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 7,
+    "feature": "Create MV",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 8,
+    "feature": "Privacy Policy",
+    "status": "Partial",
+    "detail": "Draft implementation privacy notice; operator details needed."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 9,
+    "feature": "Terms of Service",
+    "status": "Partial",
+    "detail": "Draft terms; operator details needed."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 10,
+    "feature": "Contact email",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 11,
+    "feature": "AI Audio Lab",
+    "status": "Provider-dependent",
+    "detail": "Provider adapter implemented; requires an enabled, accessible provider/model and live validation."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 12,
+    "feature": "Lyrics input",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 13,
+    "feature": "Music genre selection",
+    "status": "Partial",
+    "detail": "Genre entered in style prompt; no dedicated genre selector."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 14,
+    "feature": "Vocal gender selection",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 15,
+    "feature": "Instrumental generation",
+    "status": "Provider-dependent",
+    "detail": "Provider adapter implemented; requires an enabled, accessible provider/model and live validation."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 16,
+    "feature": "Vocal music generation",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 17,
+    "feature": "Text-to-song",
+    "status": "Provider-dependent",
+    "detail": "Provider adapter implemented; requires an enabled, accessible provider/model and live validation."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 18,
+    "feature": "Story-to-song",
+    "status": "Provider-dependent",
+    "detail": "Provider adapter implemented; requires an enabled, accessible provider/model and live validation."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 19,
+    "feature": "Multiple genres",
+    "status": "Provider-dependent",
+    "detail": "Provider adapter implemented; requires an enabled, accessible provider/model and live validation."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 20,
+    "feature": "Music-to-MV workflow",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 21,
+    "feature": "Song selection",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 22,
+    "feature": "Audio upload",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 23,
+    "feature": "Photo upload",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 24,
+    "feature": "MV description",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 25,
+    "feature": "Aspect-ratio selection",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 26,
+    "feature": "Create",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 27,
+    "feature": "Music analysis",
+    "status": "Partial",
+    "detail": "Reads prompt/lyrics metadata for planning; no beat/semantic audio analysis."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 28,
+    "feature": "Automatic script planning",
+    "status": "Provider-dependent",
+    "detail": "Provider adapter implemented; requires an enabled, accessible provider/model and live validation."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 29,
+    "feature": "Scene shot planning",
+    "status": "Provider-dependent",
+    "detail": "Provider adapter implemented; requires an enabled, accessible provider/model and live validation."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 30,
+    "feature": "Character-based cover generation",
+    "status": "Partial",
+    "detail": "Text-prompt image generation; no uploaded-photo identity conditioning."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 31,
+    "feature": "Script preview",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 32,
+    "feature": "Storyline modification",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 33,
+    "feature": "Create after approval",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 34,
+    "feature": "Merge Video",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 35,
+    "feature": "Settings",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 36,
+    "feature": "Cover editing",
+    "status": "Partial",
+    "detail": "Use image resources for scenes; no dedicated public cover asset setter."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 37,
+    "feature": "Video title editing",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 38,
+    "feature": "Options",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 39,
+    "feature": "16:9",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 40,
+    "feature": "9:16",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 41,
+    "feature": "Deep Thinking page",
+    "status": "Partial",
+    "detail": "Editable storyboard in Video Lab; no separate Deep Thinking route."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 42,
+    "feature": "Storyline section",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 43,
+    "feature": "Edit MV",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 44,
+    "feature": "Image Mode",
+    "status": "Partial",
+    "detail": "Image generation/resource selection in scenes; not a separate mode."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 45,
+    "feature": "Upload image",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 46,
+    "feature": "Image prompt",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 47,
+    "feature": "Create character",
+    "status": "Provider-dependent",
+    "detail": "Provider adapter implemented; requires an enabled, accessible provider/model and live validation."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 48,
+    "feature": "Video Mode",
+    "status": "Partial",
+    "detail": "Motion resources selectable in scenes; not a separate mode."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 49,
+    "feature": "Timeline",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 50,
+    "feature": "Image Resource Library",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 51,
+    "feature": "Assign image to clip",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 52,
+    "feature": "Clip prompt",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 53,
+    "feature": "Generate clip",
+    "status": "Provider-dependent",
+    "detail": "Provider adapter implemented; requires an enabled, accessible provider/model and live validation."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 54,
+    "feature": "Video Clip Library",
+    "status": "Partial",
+    "detail": "Project media versions, not a separate clip-library route."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 55,
+    "feature": "Drag to timeline",
+    "status": "Partial",
+    "detail": "Resource dropdown assignment; no drag from a resource dock."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 56,
+    "feature": "Drag to reorder",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 57,
+    "feature": "Preview text editing",
+    "status": "Partial",
+    "detail": "Caption text fields per scene, not inline canvas text editing."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 58,
+    "feature": "Export",
+    "status": "Implemented",
+    "detail": "See README for workflow and limits."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 59,
+    "feature": "Rhythm-aware editing",
+    "status": "Not implemented",
+    "detail": "No working control or engine is claimed for this feature."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 60,
+    "feature": "Emotion-guided visuals",
+    "status": "Partial",
+    "detail": "Mood can guide AI prompts; no validated emotion detector."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 61,
+    "feature": "Lyrics-responsive storytelling",
+    "status": "Partial",
+    "detail": "Song lyrics may be passed in a new song-to-video planning flow; no lyric timestamps or sync."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 62,
+    "feature": "Photo-based characters",
+    "status": "Partial",
+    "detail": "Uploaded photos are used as scene images; no avatar creation or identity consistency model."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 63,
+    "feature": "Animated scenes",
+    "status": "Provider-dependent",
+    "detail": "Provider adapter implemented; requires an enabled, accessible provider/model and live validation."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 64,
+    "feature": "Automatic editing",
+    "status": "Partial",
+    "detail": "AI plans text scenes; user approves and assigns media before local assembly."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 65,
+    "feature": "Mood guidance",
+    "status": "Partial",
+    "detail": "Free-form mood prompts, not a preset picker."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 66,
+    "feature": "Personal-event videos",
+    "status": "Partial",
+    "detail": "General story prompts can describe events; no dedicated event templates."
+  },
+  {
+    "source": "Sondo inventory",
+    "id": 67,
+    "feature": "Trending-track videos",
+    "status": "Partial",
+    "detail": "Use only tracks you have permission to use; no trending-track importer or music license."
+  }
+]

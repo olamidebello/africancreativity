@@ -1,0 +1,1 @@
+{"name":"africancreativity-browser-checks","private":true,"type":"module","scripts":{"test":"node --test wiring.test.mjs"},"devDependencies":{"jsdom":"26.1.0"}}
