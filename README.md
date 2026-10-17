@@ -1,5 +1,7 @@
 # AfricanCreativity
 
+Canonical website: **https://olamideolatayobello.com** — The true African mind.
+
 A working, tenant-isolated creative workspace for lyrics, recordings, short instrumental music, audio arrangement and music-video production. Python 3.11+ and SQLite provide persistent accounts, media records, projects, credits and a durable single-worker queue. Vanilla JavaScript provides the responsive GUI. This is an original platform, not an integration with or replica of Suno/Sondo's proprietary models.
 
 ## Self-hosted AI additions
@@ -124,7 +126,7 @@ CPU Torch/TorchAudio are installed as a matching pinned pair from the official P
 
 ### Replace the hosting placeholder with the application
 
-For the existing `africancreativity.io` HTTPS vhost, run:
+For the existing `olamideolatayobello.com` HTTPS vhost, run:
 
 ```bash
 git -C /root/africancreativity pull --ff-only origin main && ansible-playbook -i localhost, -c local /root/africancreativity/ansible/fix-public-site.yml
@@ -201,7 +203,7 @@ media, quotas, Nginx, AI keys or add-on runtime configuration.
 
 The public `/mobile` page is linked from sign-in and the signed-in sidebar.
 `/downloads/africa-creativity.apk` is the signed Android 8+ online client (v1.0.0),
-with an adjacent SHA-256 checksum. It uses https://africancreativity.io and the
+with an adjacent SHA-256 checksum. It uses https://olamideolatayobello.com and the
 same database-backed account, profile, project and release APIs. It supports
 Android's file picker and asks for runtime microphone permission when recording
 is requested from the trusted site. Other origins cannot obtain native capture
@@ -357,7 +359,7 @@ Direct publishing requires a real Google Cloud OAuth web client:
 1. Enable **YouTube Data API v3** in your Google Cloud project.
 2. Configure your OAuth consent screen, production privacy/support contacts and any
    required app verification. In testing mode, add intended Google accounts as test users.
-3. Register exactly `https://africancreativity.io/api/youtube/callback` as a web redirect URI.
+3. Register exactly `https://olamideolatayobello.com/api/youtube/callback` as a web redirect URI.
 4. Copy `deploy/youtube.env.example` to a protected `/root/youtube.env` on the server,
    fill its client ID/secret, and keep it out of Git. Apply:
    `ansible-playbook -i localhost, -c local /root/africancreativity/ansible/deploy-youtube.yml -e creativity_youtube_env_file=/root/youtube.env`
@@ -385,3 +387,17 @@ Official references:
 https://developers.google.com/youtube/data/guides/using_resumable_upload_protocol
 https://developers.google.com/identity/protocols/oauth2/web-server
 https://developers.google.com/youtube/terms/developer-policies
+
+## Switch the public domain
+
+The canonical domain is **https://olamideolatayobello.com**. Keep the application on loopback port 8096. To activate routing on the hosting server, run the reviewed `ansible/switch-domain.yml` playbook from this checkout:
+
+```bash
+ansible-playbook -i localhost, -c local /root/africancreativity/ansible/switch-domain.yml
+```
+
+The playbook requires a healthy installed app. It locates a dedicated existing vhost or creates one, refuses configurations shared with unrelated hostnames, saves its prior content under `/var/backups/africancreativity`, reuses a valid Let's Encrypt certificate or obtains one through HTTP webroot validation, runs `nginx -t`, then verifies HTTPS health and branding. A failed switch restores the prior vhost. DNS A/AAAA records must reach this server; port 80 must be reachable for certificate issuance/renewal. DNS/registrar records are not changed by this playbook. It manages the apex hostname; additional aliases need their own DNS/certificate configuration.
+
+The YouTube configuration example and Android source now use the new hostname. If a protected YouTube configuration already exists, the playbook changes only its callback URI and restarts the application. Register `https://olamideolatayobello.com/api/youtube/callback` in the Google OAuth client before reconnecting channels. No Google client secrets are published or replaced.
+
+Already-built Android APKs retain their compiled hostname. Rebuild from the updated Android source using the existing signing key before replacing the hosted APK; this domain change does not silently sign an incompatible replacement. Existing application records and accounts are not migrated or recreated by the routing playbook.

@@ -1,15 +1,15 @@
-# Replace creativity.example and certificate paths for the domain you control.
+# Africa Creativity canonical domain. The switch-domain playbook manages HTTPS.
 # Obtain a certificate separately. Validate with nginx -t before reloading.
 server {
     listen 80;
-    server_name creativity.example;
+    server_name olamideolatayobello.com;
     return 301 https://$host$request_uri;
 }
 server {
     listen 443 ssl;
-    server_name creativity.example;
-    ssl_certificate /etc/letsencrypt/live/creativity.example/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/creativity.example/privkey.pem;
+    server_name olamideolatayobello.com;
+    ssl_certificate /etc/letsencrypt/live/olamideolatayobello.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/olamideolatayobello.com/privkey.pem;
     client_max_body_size 28m;
     location / {
         proxy_pass http://127.0.0.1:8096;
