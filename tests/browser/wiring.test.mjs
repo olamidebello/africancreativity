@@ -99,3 +99,7 @@ test('transcription selects a Library recording and sends its asset id',async()=
 test('completed transcription exposes an SRT download',async()=>{
  const {dom,w}=setup('tenant_admin','#home');await tick();const previous=w.fetch;w.fetch=async(url,options)=>String(url)==='/api/jobs'?{ok:true,status:200,json:async()=>({jobs:[{id:8,project_id:1,kind:'open_engine',state:'completed',cost:0,created:1,result:{text:'Hello',srt:'1\n00:00:00,000 --> 00:00:01,000\nHello'}}]})}:previous(url,options);w.location.hash='jobs';await tick();assert.ok(button(w,'Download SRT subtitles'));assert.match(w.document.querySelector('#view').textContent,/Hello/);dom.window.close();
 });
+
+test('engine status refresh reloads diagnostics from the authenticated backend',async()=>{
+ const {dom,w,calls}=setup('tenant_admin','#open-ai',false,{open_models:[{id:'wan',name:'Wan',ready:false,message:'GPU hardware profile not met'}]});await tick();assert.match(w.document.querySelector('#view').textContent,/GPU hardware profile not met/);const before=calls.filter(c=>c.path==='me').length;button(w,'Refresh engine status').click();await tick();assert.ok(calls.filter(c=>c.path==='me').length>before);dom.window.close();
+});

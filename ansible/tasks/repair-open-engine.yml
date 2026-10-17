@@ -1,0 +1,76 @@
+---
+- name: Retain manifest before this engine attempt
+  ansible.builtin.set_fact:
+    open_engine_before: '{{ open_engine_manifest }}'
+
+- name: Report hardware-blocked engine without disabling existing working engines
+  ansible.builtin.set_fact:
+    open_engine_report: "{{ open_engine_report | combine({open_engine: {'state': 'blocked', 'message': 'Hardware profile not met: CPU tools need 4 GB RAM; ACE-Step/Wan need a 12 GB NVIDIA GPU and 32 GB RAM; FLUX needs a 16 GB GPU and 48 GB RAM. No GPU hardware or drivers are installed by this script.'}}) }}"
+  when: open_engine not in open_engines_selected
+
+- name: Install verify and enable this supported engine
+  when: open_engine in open_engines_selected
+  block:
+    - name: Publish installation-in-progress state
+      ansible.builtin.set_fact:
+        open_engine_report: "{{ open_engine_report | combine({open_engine: {'state': 'installing', 'message': 'Installing prerequisites, model files and checking real generated output.'}}) }}"
+    - name: Save current installation progress
+      ansible.builtin.copy:
+        dest: '{{ creativity_install }}/open-engine-status.json'
+        content: '{{ open_engine_report | to_nice_json }}'
+        owner: root
+        group: africancreativity
+        mode: '0640'
+    - name: Build isolated dependencies and verify real model output
+      ansible.builtin.include_tasks: install-open-engine.yml
+    - name: Enable this verified engine while retaining others
+      ansible.builtin.set_fact:
+        open_engine_manifest: "{{ open_engine_manifest | combine({open_engine: {'verified': true, 'python': open_runtime + '/bin/python', 'cache': open_cache, 'profile': open_profile_id}}) }}"
+    - name: Atomically publish enabled engine
+      ansible.builtin.copy:
+        dest: '{{ creativity_install }}/open-engines.json'
+        content: '{{ open_engine_manifest | to_nice_json }}'
+        owner: root
+        group: africancreativity
+        mode: '0640'
+    - name: Confirm service identity can read and use the new manifest
+      become_user: africancreativity
+      vars:
+        ansible_remote_tmp: /var/tmp/africancreativity-ansible
+      ansible.builtin.command:
+        argv:
+          - python3
+          - -c
+          - "import sys; sys.path.insert(0,sys.argv[1]); import open_engines; assert any(m['id']==sys.argv[2] and m['ready'] for m in open_engines.catalog()), 'Engine manifest is not accessible'"
+          - '{{ creativity_install }}'
+          - '{{ open_engine }}'
+      changed_when: false
+    - name: Check running application before continuing to next engine
+      ansible.builtin.uri:
+        url: 'http://127.0.0.1:{{ creativity_port }}/health'
+        status_code: 200
+    - name: Mark this engine ready
+      ansible.builtin.set_fact:
+        open_engine_report: "{{ open_engine_report | combine({open_engine: {'state':'ready','message':'Installed and enabled after real output verification.'}}) }}"
+  rescue:
+    - name: Restore manifest from before this engine attempt
+      ansible.builtin.set_fact:
+        open_engine_manifest: '{{ open_engine_before }}'
+    - name: Preserve other engines after this failure
+      ansible.builtin.copy:
+        dest: '{{ creativity_install }}/open-engines.json'
+        content: '{{ open_engine_manifest | to_nice_json }}'
+        owner: root
+        group: africancreativity
+        mode: '0640'
+    - name: Record failing installation stage without exposing dependency output to users
+      ansible.builtin.set_fact:
+        open_engine_report: "{{ open_engine_report | combine({open_engine: {'state':'failed','message':'Installation failed at: ' + (ansible_failed_task.name | default('model verification')) + '. Inspect the server Ansible output for the dependency or model error; other engines continue.'}}) }}"
+
+- name: Persist this engine outcome for GUI diagnostics
+  ansible.builtin.copy:
+    dest: '{{ creativity_install }}/open-engine-status.json'
+    content: '{{ open_engine_report | to_nice_json }}'
+    owner: root
+    group: africancreativity
+    mode: '0640'

@@ -19,7 +19,19 @@ def configuration():
 
 def catalog():
     conf=configuration()
-    return [dict(id=k, **v, ready=bool(conf.get(k,{}).get('verified')) and Path(conf.get(k,{}).get('python','/nonexistent')).is_file()) for k,v in CATALOG.items()]
+    try:
+        status=json.loads((Path(__file__).parent/'open-engine-status.json').read_text())
+        if not isinstance(status,dict): status={}
+    except (OSError,ValueError): status={}
+    result=[]
+    for key,spec in CATALOG.items():
+        entry=conf.get(key,{})
+        ready=isinstance(entry,dict) and entry.get('verified') is True and Path(entry.get('python','/nonexistent')).is_file()
+        state=status.get(key,{})
+        message=state.get('message','Installation and real model verification have not completed.') if isinstance(state,dict) else 'Installation status unavailable.'
+        if ready: message='Ready — verified installation. '+('Latest repair attempt: '+message if isinstance(state,dict) and state.get('state') in ('failed','blocked') else '')
+        result.append(dict(id=key,**spec,ready=ready,state='ready' if ready else state.get('state','unavailable') if isinstance(state,dict) else 'unavailable',message=message[:500]))
+    return result
 
 def validate(p):
     engine=p.get('engine')

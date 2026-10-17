@@ -111,3 +111,37 @@ selection and subtitle download visibility. Model calls are mocked in these
 integration tests. Installer inference checks are the target-machine gate;
 passing application tests does not verify downloaded-model compatibility or
 production output quality.
+
+## Repair and enable one engine at a time
+
+```bash
+git -C /root/africancreativity pull --ff-only origin main
+ansible-playbook -i localhost, -c local /root/africancreativity/ansible/repair-enable-engines.yml
+```
+
+This entry point installs OS prerequisites, prepares each isolated environment,
+updates packaging tools, installs model dependencies, downloads model files and
+checks a real output. Whisper and Kokoro are attempted first. Each successful
+engine is enabled immediately; the next engine's failure cannot discard it.
+Previously verified engines not selected for repair are preserved.
+
+The root-owned `open-engine-status.json` contains per-engine installing, ready,
+blocked or failed status and the name of a failing installation stage. The GUI
+shows these messages; use **Refresh engine status** to reload current capabilities
+without signing out. Full dependency diagnostics stay in the server's Ansible
+output. A failed repair retains that engine's last working manifest entry.
+
+Disk is checked per engine (5 GiB for Whisper, 10 GiB for Kokoro, 60 GiB for each
+GPU installation attempt). These replace the earlier aggregate disk preflight.
+The installer continues after individual engine errors and prints a final report;
+read it even if the play recap has no unrecovered failures. With
+`open_engines_require_all=true`, a final assertion also flags partial outcomes.
+No software installer can create missing physical GPU capacity. Hardware-blocked
+engines remain unavailable unless a previously verified runtime was retained.
+
+The repair also addresses the reported `typing-extensions` / missing `flit_core`
+installation failure: packaging tools are upgraded from PyPI first, PyPI remains
+the primary dependency index, and exact `+cpu` or `+cu128` Torch-family wheels
+come from the additional PyTorch index. General Python build dependencies are
+no longer limited to the PyTorch-only index. No system Python packages are
+replaced; these changes apply to each isolated virtual environment.

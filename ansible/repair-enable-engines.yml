@@ -1,0 +1,5 @@
+---
+# Existing installation: install prerequisites, verify real output, enable one
+# engine at a time, continue after individual failures, and report each outcome.
+- name: Repair and enable self-hosted engines independently
+  ansible.builtin.import_playbook: install-open-engines.yml

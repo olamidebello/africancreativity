@@ -37,6 +37,18 @@ class OpenEngineTests(unittest.TestCase):
     def test_selected_engine_must_be_verified(self):
         self.manifest.write_text(json.dumps({'kokoro':{'verified':True,'python':__import__('sys').executable}}))
         with self.assertRaises(Problem):self.queue({'engine':'ace-step','prompt':'A melody'})
+    def test_ready_engine_retained_when_latest_repair_is_blocked(self):
+        status=Path(open_engines.__file__).parent/'open-engine-status.json'
+        with patch.object(open_engines.Path,'read_text',autospec=True) as read:
+            read.side_effect=lambda path: json.dumps({'kokoro':{'state':'blocked','message':'GPU unavailable'}}) if path.name=='open-engine-status.json' else self.manifest.read_bytes().decode()
+            model=next(m for m in open_engines.catalog() if m['id']=='kokoro')
+            self.assertTrue(model['ready']);self.assertEqual(model['state'],'ready');self.assertIn('Latest repair attempt',model['message'])
+    def test_unready_engine_shows_specific_installation_failure(self):
+        self.manifest.write_text('{}')
+        with patch.object(open_engines.Path,'read_text',autospec=True) as read:
+            read.side_effect=lambda path: json.dumps({'wan':{'state':'failed','message':'Installation failed at: Verify dependency consistency'}}) if path.name=='open-engine-status.json' else '{}'
+            model=next(m for m in open_engines.catalog() if m['id']=='wan')
+            self.assertFalse(model['ready']);self.assertEqual(model['state'],'failed');self.assertIn('dependency',model['message'])
     def test_invalid_bounds_and_voice_rejected(self):
         for payload in [{'engine':'ace-step','prompt':'Music','duration':999},{'engine':'kokoro','prompt':'Hi','voice':'../../secret'},{'engine':'wan','prompt':'Hi','seed':float('nan')},{'engine':'flux-schnell','prompt':''}]:
             with self.assertRaises(Problem):open_engines.validate(payload)

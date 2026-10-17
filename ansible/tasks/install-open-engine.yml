@@ -1,15 +1,41 @@
----
+- name: Check free space before installing this engine
+  ansible.builtin.command:
+    argv:
+    - python3
+    - -c
+    - import shutil; print(shutil.disk_usage('/opt').free)
+  register: open_engine_free
+  changed_when: false
+- name: Require disk space for this engine profile
+  ansible.builtin.assert:
+    that: open_engine_free.stdout | int > ((5 if open_engine == 'whisper' else 10 if open_engine == 'kokoro' else 60) * 1024**3)
+    fail_msg: Insufficient free disk space for this engine. Existing engines are preserved.
 - name: Identify exact adapter and dependency profile
   ansible.builtin.set_fact:
-    open_profile_id: "{{ ((lookup('file', playbook_dir + '/../requirements/' + open_engine_requirements[open_engine]) + lookup('file', playbook_dir + '/../deploy/run_open_engine.py')) | hash('sha256'))[:16] }}"
+    open_profile_id: '{{ ((lookup(''file'', playbook_dir + ''/../requirements/'' + open_engine_requirements[open_engine]) + lookup(''file'', playbook_dir
+      + ''/../deploy/run_open_engine.py'') + lookup(''file'', playbook_dir + ''/tasks/install-open-engine.yml'')) | hash(''sha256''))[:16] }}'
 - name: Select versioned runtime and model cache
   ansible.builtin.set_fact:
     open_runtime: '{{ open_engines_root }}/{{ open_engine }}-{{ open_profile_id }}'
     open_cache: '{{ creativity_install }}/data/open-models/{{ open_engine }}'
 - name: Create isolated environment
   ansible.builtin.command:
-    argv: [python3, -m, venv, '{{ open_runtime }}']
+    argv:
+    - python3
+    - -m
+    - venv
+    - '{{ open_runtime }}'
     creates: '{{ open_runtime }}/bin/python'
+- name: Update packaging tools in the isolated environment
+  ansible.builtin.pip:
+    name:
+    - pip>=24.3
+    - setuptools>=70
+    - wheel
+    - packaging
+    - flit_core>=3.11,<4
+    virtualenv: '{{ open_runtime }}'
+    extra_args: --index-url https://pypi.org/simple
 - name: Create model cache as service identity
   ansible.builtin.file:
     path: '{{ open_cache }}'
@@ -19,9 +45,13 @@
     mode: '0700'
 - name: Install pinned PyTorch wheel family
   ansible.builtin.pip:
-    name: ['torch==2.8.0', 'torchaudio==2.8.0', 'torchvision==0.23.0']
+    name:
+    - torch==2.8.0+{{ 'cpu' if open_engine == 'kokoro' else 'cu128' }}
+    - torchaudio==2.8.0+{{ 'cpu' if open_engine == 'kokoro' else 'cu128' }}
+    - torchvision==0.23.0+{{ 'cpu' if open_engine == 'kokoro' else 'cu128' }}
     virtualenv: '{{ open_runtime }}'
-    extra_args: "--index-url https://download.pytorch.org/whl/{{ 'cpu' if open_engine in ['kokoro','whisper'] else 'cu128' }}"
+    extra_args: --index-url https://pypi.org/simple --extra-index-url https://download.pytorch.org/whl/{{ 'cpu' if open_engine == 'kokoro' else
+      'cu128' }} --prefer-binary
   when: open_engine != 'whisper'
 - name: Copy engine dependency profile
   ansible.builtin.copy:
@@ -32,9 +62,14 @@
   ansible.builtin.pip:
     requirements: '{{ open_runtime }}/requirements.txt'
     virtualenv: '{{ open_runtime }}'
+    extra_args: --index-url https://pypi.org/simple --prefer-binary
 - name: Verify dependency consistency
   ansible.builtin.command:
-    argv: ['{{ open_runtime }}/bin/python', -m, pip, check]
+    argv:
+    - '{{ open_runtime }}/bin/python'
+    - -m
+    - pip
+    - check
   changed_when: false
 - name: Generate and validate real output before marking engine ready
   become_user: africancreativity
@@ -42,15 +77,16 @@
     ansible_remote_tmp: /var/tmp/africancreativity-ansible
   ansible.builtin.command:
     argv:
-      - '{{ open_runtime }}/bin/python'
-      - '{{ creativity_install }}/deploy/run_open_engine.py'
-      - --engine
-      - '{{ open_engine }}'
-      - --cache
-      - '{{ open_cache }}'
-      - --output
-      - '{{ open_cache }}/installation-check.{{ "png" if open_engine == "flux-schnell" else "mp4" if open_engine == "wan" else "json" if open_engine == "whisper" else "wav" }}'
-      - --verify
+    - '{{ open_runtime }}/bin/python'
+    - '{{ creativity_install }}/deploy/run_open_engine.py'
+    - --engine
+    - '{{ open_engine }}'
+    - --cache
+    - '{{ open_cache }}'
+    - --output
+    - '{{ open_cache }}/installation-check.{{ "png" if open_engine == "flux-schnell" else "mp4" if open_engine == "wan" else "json" if open_engine
+      == "whisper" else "wav" }}'
+    - --verify
   environment:
     HOME: '{{ open_cache }}'
     HF_HOME: '{{ open_cache }}/huggingface'
@@ -60,6 +96,3 @@
   async: 7200
   poll: 10
   changed_when: false
-- name: Record verified engine
-  ansible.builtin.set_fact:
-    open_engine_manifest: "{{ open_engine_manifest | combine({open_engine: {'verified': true, 'python': open_runtime + '/bin/python', 'cache': open_cache, 'profile': open_profile_id}}) }}"
