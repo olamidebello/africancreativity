@@ -103,6 +103,15 @@
             directory_mode: '0755'
             mode: '0644'
           loop: [static, deploy]
+        - name: Ensure code directories are traversable and files readable by the service
+          ansible.builtin.file:
+            path: '{{ creativity_install }}/{{ item }}'
+            state: directory
+            recurse: true
+            owner: root
+            group: root
+            mode: 'u=rwX,g=rX,o=rX'
+          loop: [static, deploy]
         - name: Create protected runtime data
           ansible.builtin.file:
             path: '{{ creativity_install }}/data'

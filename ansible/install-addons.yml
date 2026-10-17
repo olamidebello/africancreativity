@@ -88,6 +88,20 @@
       ansible.builtin.command:
         argv: ['{{ addon_runtime }}/bin/python', -m, pip, check]
       changed_when: false
+    - name: Ensure verification helper directory is traversable
+      ansible.builtin.file:
+        path: '{{ creativity_install }}/deploy'
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+    - name: Create private Ansible temporary directory for the service identity
+      ansible.builtin.file:
+        path: /var/tmp/africancreativity-ansible
+        state: directory
+        owner: africancreativity
+        group: africancreativity
+        mode: '0700'
     - name: Copy add-on runtime verification helper
       ansible.builtin.copy:
         src: '{{ creativity_source }}/deploy/verify_addons.py'
@@ -96,9 +110,12 @@
         mode: '0644'
     - name: Exercise media processing and optionally build model caches before activation
       become_user: africancreativity
+      vars:
+        ansible_remote_tmp: /var/tmp/africancreativity-ansible
       ansible.builtin.command:
         argv: "{{ [addon_runtime + '/bin/python', creativity_install + '/deploy/verify_addons.py', '--modules', creativity_addons | to_json] + (['--load-models'] if creativity_verify_models | bool else []) }}"
       environment:
+        HOME: '{{ creativity_install }}/data'
         HF_HOME: '{{ creativity_install }}/data/model-cache/huggingface'
         TORCH_HOME: '{{ creativity_install }}/data/model-cache/torch'
         OMP_NUM_THREADS: '2'
