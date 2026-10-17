@@ -192,4 +192,11 @@ class PlatformTest(unittest.TestCase):
         self.assertEqual(client.call('login','POST',dict(username='space-artist',password=password))[0],200)
         self.assertEqual(client.call('login','POST',dict(username='space-artist',password=password.strip()))[0],401)
 
+    def test_explore_page_is_public_without_a_session(self):
+        with urllib.request.urlopen(Client(self.port).base+'/explore') as response:
+            self.assertEqual(response.status,200)
+            self.assertIn(b'id="public-explore"',response.read())
+        status,data=Client(self.port).call('explore')
+        self.assertEqual(status,200);self.assertIsInstance(data['projects'],list)
+
 if __name__=='__main__':unittest.main()

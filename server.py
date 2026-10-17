@@ -114,7 +114,7 @@ class Handler(BaseHTTPRequestHandler):
         url=urlparse(self.path);path=url.path;qs=parse_qs(url.query)
         if path=='/health' and method=='GET':return self.send(200,{'status':'ok'})
         if not path.startswith('/api/'):
-            files={'/':'index.html','/logo.jpg':'logo.jpg','/app.js':'app.js','/style.css':'style.css','/studio.js':'studio.js','/help':'help.html','/terms':'terms.html','/privacy':'privacy.html'}
+            files={'/':'index.html','/explore':'index.html','/logo.jpg':'logo.jpg','/app.js':'app.js','/style.css':'style.css','/studio.js':'studio.js','/help':'help.html','/terms':'terms.html','/privacy':'privacy.html'}
             if method!='GET' or path not in files:raise Problem('Not found',404)
             f=db.ROOT/'static'/files[path];return self.binary(f,mimetypes.guess_type(f)[0] or 'text/plain')
         with self.request_database() as c:

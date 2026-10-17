@@ -42,3 +42,21 @@ test('login and invitation flows submit to backend and open workspace',async()=>
   assert.ok(calls.find(c=>c.path==='login'&&c.method==='POST'));if(invitation)assert.ok(calls.find(c=>c.path==='accept-invitation'&&c.body.token==='private-token'));assert.equal(w.document.getElementById('auth').hidden,true);assert.equal(f.elements.password.value,'');dom.window.close();
  }
 });
+
+test('public Explore link supports click, reload and sign-in return',async()=>{
+ const {dom,w,calls}=setup('tenant_admin','#home',true);await tick();
+ w.document.getElementById('public-explore').click();await tick();await tick();
+ assert.equal(w.location.hash,'#explore');assert.equal(w.document.getElementById('auth').hidden,true);assert.equal(w.document.getElementById('public-view').hidden,false);assert.ok(calls.find(c=>c.path==='explore'));assert.match(w.document.getElementById('public-view').textContent,/The stage is yours/);
+ button(w,'← Sign in').click();await tick();assert.equal(w.document.getElementById('auth').hidden,false);assert.equal(w.document.getElementById('public-view').hidden,true);dom.window.close();
+ const direct=setup('tenant_admin','#explore',true);await tick();await tick();assert.equal(direct.w.document.getElementById('public-view').hidden,false);assert.ok(direct.calls.find(c=>c.path==='explore'));direct.dom.window.close();
+});
+test('public Explore shows API errors and retry instead of an empty page',async()=>{
+ const {dom,w}=setup('tenant_admin','#home',true);await tick();const original=w.fetch;let failed=true;
+ w.fetch=async(url,options)=>String(url)==='/api/explore'&&failed?{ok:false,status:503,json:async()=>({error:'Temporarily unavailable'})}:original(url,options);
+ w.document.getElementById('public-explore').click();await tick();await tick();assert.match(w.document.getElementById('public-view').textContent,/Temporarily unavailable/);failed=false;button(w,'Try again').click();await tick();assert.match(w.document.getElementById('public-view').textContent,/The stage is yours/);dom.window.close();
+});
+test('public release buttons navigate to share routes and retain a way back',async()=>{
+ const {dom,w}=setup('tenant_admin','#home',true);await tick();const original=w.fetch;
+ w.fetch=async(url,options)=>String(url)==='/api/explore'?{ok:true,status:200,json:async()=>({projects:[{id:12,title:'Public song',kind:'song',artist:'Artist',label:'Studio'}]})}:String(url)==='/api/public/12'?{ok:true,status:200,json:async()=>({project:{id:12,title:'Public song',kind:'song'},assets:[],tracks:[]})}:original(url,options);
+ w.document.getElementById('public-explore').click();await tick();await tick();button(w,'Listen / watch').click();await tick();await tick();assert.equal(w.location.hash,'#share/12');assert.match(w.document.getElementById('public-view').textContent,/Public song/);assert.equal(w.document.getElementById('auth').hidden,true);button(w,'Explore all releases').click();await tick();assert.equal(w.location.hash,'#explore');dom.window.close();
+});
