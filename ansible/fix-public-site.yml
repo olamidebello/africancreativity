@@ -1,0 +1,96 @@
+---
+- name: Route AfricanCreativity HTTPS site to the verified application
+  hosts: all
+  become: true
+  gather_facts: false
+  vars:
+    creativity_domain: africancreativity.io
+    creativity_nginx_site: /etc/nginx/sites-enabled/africancreativity.io
+    creativity_backend_port: 8096
+  tasks:
+    - name: Check application health before changing Nginx
+      ansible.builtin.uri:
+        url: 'http://127.0.0.1:{{ creativity_backend_port }}/health'
+        status_code: 200
+        return_content: true
+      register: backend_health
+      failed_when: backend_health.status != 200 or backend_health.json.status | default('') != 'ok'
+      when: not ansible_check_mode
+
+    - name: Require the existing dedicated domain configuration
+      ansible.builtin.command:
+        argv: [grep, -Eq, 'server_name[^;]*\b{{ creativity_domain | regex_escape }}\b', '{{ creativity_nginx_site }}']
+      changed_when: false
+
+    - name: Apply and verify proxy configuration
+      block:
+        - name: Back up and replace existing root location blocks
+          ansible.builtin.replace:
+            path: '{{ creativity_nginx_site }}'
+            backup: true
+            regexp: '(?m)^[ \t]*location\s+/\s*\{[^{}]*\}'
+            replace: |
+              location / {
+                  proxy_pass http://127.0.0.1:{{ creativity_backend_port }};
+                  proxy_http_version 1.1;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+                  proxy_read_timeout 300s;
+                  client_max_body_size 28m;
+              }
+          register: proxy_update
+
+        - name: Confirm configuration contains the application proxy
+          ansible.builtin.command:
+            argv: [grep, -Fq, 'proxy_pass http://127.0.0.1:{{ creativity_backend_port }};', '{{ creativity_nginx_site }}']
+          changed_when: false
+          when: not ansible_check_mode
+
+        - name: Validate all Nginx configuration
+          ansible.builtin.command: nginx -t
+          changed_when: false
+          when: not ansible_check_mode
+
+        - name: Reload validated Nginx configuration
+          ansible.builtin.systemd:
+            name: nginx
+            state: reloaded
+          when: not ansible_check_mode
+
+        - name: Verify public HTTPS serves the real application
+          ansible.builtin.uri:
+            url: 'https://{{ creativity_domain }}/'
+            status_code: 200
+            return_content: true
+            timeout: 20
+          register: public_site
+          until: >-
+            public_site.status | default(0) == 200 and
+            'The true African mind' in (public_site.content | default(''))
+          retries: 3
+          delay: 2
+          when: not ansible_check_mode
+
+      rescue:
+        - name: Restore backup if this run changed the configuration
+          ansible.builtin.copy:
+            src: '{{ proxy_update.backup_file }}'
+            dest: '{{ creativity_nginx_site }}'
+            remote_src: true
+          when: proxy_update.backup_file is defined
+        - name: Validate restored Nginx configuration
+          ansible.builtin.command: nginx -t
+          changed_when: false
+        - name: Reload restored configuration
+          ansible.builtin.systemd:
+            name: nginx
+            state: reloaded
+        - name: Report failed activation
+          ansible.builtin.fail:
+            msg: Public site verification failed. Any configuration change from this run was restored. Inspect the failed task above.
+
+    - name: Report website address
+      ansible.builtin.debug:
+        msg: 'Verified https://{{ creativity_domain }}/ serves Africa Creativity on port {{ creativity_backend_port }}. Existing TLS settings are preserved.'

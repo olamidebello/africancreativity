@@ -110,3 +110,19 @@ creativity_verify_models: true
 `musicgen` additionally requires `creativity_accept_musicgen_license: true` after the operator reviews its noncommercial model-weight license. Do not set this for commercial deployment without appropriate rights. `motion-video` additionally requires an existing protected `/etc/africancreativity/ai.env` containing the intended OpenAI key; it enables the adapter, not a guarantee of API entitlement. Generated provider video is not requested by the installer. The local key is not copied to the server by Git.
 
 CPU Torch/TorchAudio are installed as a matching pinned pair from the official PyTorch wheel index. Optional dependency/model downloads require outbound access and disk capacity. Model verification can take several minutes on CPU. No voice cloning, sung-vocal engine or custom-model trainer is installed or represented as working. The detailed feature inventory remains the record of outstanding work.
+
+### Replace the hosting placeholder with the application
+
+For the existing `africancreativity.io` HTTPS vhost, run:
+
+```bash
+git -C /root/africancreativity pull --ff-only origin main && ansible-playbook -i localhost, -c local /root/africancreativity/ansible/fix-public-site.yml
+```
+
+This requires the existing domain-specific Nginx configuration and working TLS
+certificate. It checks the backend health, backs up and replaces its simple root
+`location /` block with a proxy to port 8096, runs `nginx -t`, reloads, and verifies
+the public page contains the Africa Creativity brand. It restores the backup on
+activation failure. It leaves DNS, certificates, account data and other domain
+files untouched. Configurations with nested root-location blocks require manual
+review; the playbook fails if it cannot find a matching proxy afterward.
