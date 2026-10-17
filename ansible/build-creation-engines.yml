@@ -1,0 +1,106 @@
+---
+# Existing installation update; preserves the active optional AI runtime.
+- name: Install creation engine source and latest platform UI with backups
+  ansible.builtin.import_playbook: deploy-admin.yml
+
+- name: Build verify and activate local composition engines
+  hosts: all
+  become: true
+  gather_facts: false
+  vars:
+    creativity_install: /opt/africancreativity
+    creativity_port: 8096
+    creativity_creation_engines: [arpeggio, chord-pad, bassline]
+  tasks:
+    - name: Validate engine selection and installation path
+      ansible.builtin.assert:
+        that:
+          - creativity_install is match('^/opt/[A-Za-z0-9_-]+$')
+          - creativity_creation_engines is sequence and creativity_creation_engines is not string
+          - creativity_creation_engines | length > 0
+          - creativity_creation_engines | difference(['arpeggio', 'chord-pad', 'bassline']) | length == 0
+    - name: Install standard runtime prerequisites
+      ansible.builtin.apt:
+        name: [python3, ffmpeg]
+        state: present
+    - name: Install output verification helper
+      ansible.builtin.copy:
+        src: '{{ playbook_dir }}/../deploy/verify_creation_engines.py'
+        dest: '{{ creativity_install }}/deploy/verify_creation_engines.py'
+        owner: root
+        group: root
+        mode: '0644'
+    - name: Build and inspect a real WAV from every selected engine
+      become_user: africancreativity
+      vars:
+        ansible_remote_tmp: /var/tmp/africancreativity-ansible
+      ansible.builtin.command:
+        argv: [python3, '{{ creativity_install }}/deploy/verify_creation_engines.py', --engines, '{{ creativity_creation_engines | to_json }}']
+      changed_when: false
+      register: creation_verification
+    - name: Ensure systemd override directory exists
+      ansible.builtin.file:
+        path: /etc/systemd/system/africancreativity.service.d
+        state: directory
+        mode: '0755'
+    - name: Inspect previous engine selection
+      ansible.builtin.stat:
+        path: /etc/systemd/system/africancreativity.service.d/local-engines.conf
+      register: selection_file
+    - name: Read previous engine selection
+      ansible.builtin.slurp:
+        src: /etc/systemd/system/africancreativity.service.d/local-engines.conf
+      register: previous_selection
+      when: selection_file.stat.exists
+    - name: Activate verified creation engines
+      block:
+        - name: Enable selected engines without changing optional AI runtime
+          ansible.builtin.copy:
+            dest: /etc/systemd/system/africancreativity.service.d/local-engines.conf
+            owner: root
+            group: root
+            mode: '0644'
+            content: |
+              [Service]
+              Environment=LOCAL_CREATION_ENGINES={{ creativity_creation_engines | join(',') }}
+          register: creation_selection
+        - name: Restart application to load engine catalog
+          ansible.builtin.systemd:
+            name: africancreativity
+            daemon_reload: true
+            state: restarted
+          when: creation_selection.changed
+        - name: Verify health after engine activation
+          ansible.builtin.uri:
+            url: 'http://127.0.0.1:{{ creativity_port }}/health'
+            status_code: 200
+          register: creation_health
+          until: creation_health.status | default(0) == 200
+          retries: 15
+          delay: 2
+      rescue:
+        - name: Restore previous engine selection
+          ansible.builtin.copy:
+            content: '{{ previous_selection.content | b64decode }}'
+            dest: /etc/systemd/system/africancreativity.service.d/local-engines.conf
+            mode: '0644'
+          when: selection_file.stat.exists
+        - name: Remove first-time failed engine selection
+          ansible.builtin.file:
+            path: /etc/systemd/system/africancreativity.service.d/local-engines.conf
+            state: absent
+          when: not selection_file.stat.exists
+        - name: Restart previous engine configuration
+          ansible.builtin.systemd:
+            name: africancreativity
+            daemon_reload: true
+            state: restarted
+        - name: Report activation failure
+          ansible.builtin.fail:
+            msg: Creation engine activation failed; previous engine selection restored.
+    - name: Report verified engine outputs
+      ansible.builtin.debug:
+        msg: '{{ creation_verification.stdout | from_json }}'
+    - name: Promote an explicitly selected account when requested
+      ansible.builtin.include_tasks: tasks/promote-account.yml
+      when: creativity_super_admin_email is defined

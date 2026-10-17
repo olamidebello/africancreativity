@@ -1,0 +1,13 @@
+---
+- name: Update platform access guards and GUI
+  ansible.builtin.import_playbook: deploy-admin.yml
+
+- name: Promote the explicitly selected registered account
+  hosts: all
+  become: true
+  gather_facts: false
+  vars:
+    creativity_install: /opt/africancreativity
+  tasks:
+    - name: Apply selected account promotion
+      ansible.builtin.include_tasks: tasks/promote-account.yml

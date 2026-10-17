@@ -13,6 +13,7 @@
     creativity_addons: [audio-tools, note-tools]
     creativity_accept_musicgen_license: false
     creativity_verify_models: true
+    creativity_musicgen_models: [musicgen-small]
     creativity_runtime_root: /opt/africancreativity-runtimes
   tasks:
     - name: Validate selected modules and deployment paths
@@ -20,6 +21,10 @@
         that:
           - creativity_addons is sequence and creativity_addons is not string
           - creativity_addons | difference(['audio-tools', 'note-tools', 'musicgen', 'stems', 'motion-video']) | length == 0
+          - creativity_musicgen_models is sequence and creativity_musicgen_models is not string
+          - creativity_musicgen_models | difference(['musicgen-small', 'musicgen-medium']) | length == 0
+          - "'musicgen' not in creativity_addons or creativity_musicgen_models | length > 0"
+          - "'musicgen' not in creativity_addons or creativity_verify_models | bool"
           - creativity_install is match('^/opt/[A-Za-z0-9_-]+$')
           - creativity_source is match('^/opt/[A-Za-z0-9_-]+$')
           - creativity_runtime_root is match('^/opt/[A-Za-z0-9_-]+$')
@@ -39,6 +44,11 @@
           - ansible_memtotal_mb | int >= 7500
         fail_msg: Optional model engines require at least 8 GB RAM for this deployment profile. CPU generation can be slow; use a separately reviewed GPU runtime for higher throughput.
       when: "'musicgen' in creativity_addons or 'stems' in creativity_addons"
+    - name: Require conservative memory profile for MusicGen Medium
+      ansible.builtin.assert:
+        that: ansible_memtotal_mb | int >= 15500
+        fail_msg: This CPU profile requires at least 16 GB RAM for MusicGen Medium.
+      when: "'musicgen' in creativity_addons and 'musicgen-medium' in creativity_musicgen_models"
     - name: Install build and media dependencies
       ansible.builtin.apt:
         name: [python3-venv, python3-dev, build-essential, ffmpeg, fonts-dejavu-core, libgomp1, libsndfile1]
@@ -119,6 +129,7 @@
         HF_HOME: '{{ creativity_install }}/data/model-cache/huggingface'
         TORCH_HOME: '{{ creativity_install }}/data/model-cache/torch'
         OMP_NUM_THREADS: '2'
+        MUSICGEN_MODELS: '{{ creativity_musicgen_models | join(",") }}'
       changed_when: false
       register: addon_verification
     - name: Check protected AI configuration before enabling motion video
@@ -135,6 +146,7 @@
         dest: '/etc/africancreativity/addons-{{ addon_revision.stdout }}-{{ creativity_addons | sort | join("-") }}.env'
         mode: '0600'
         content: |
+          MUSICGEN_MODELS={{ creativity_musicgen_models | join(",") }}
           MUSICGEN_ENABLED={{ ('musicgen' in creativity_addons) | ternary('1','0') }}
           MUSICGEN_LICENSE_ACCEPTED={{ creativity_accept_musicgen_license | bool | ternary('1','0') }}
           DEMUCS_ENABLED={{ ('stems' in creativity_addons) | ternary('1','0') }}

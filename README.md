@@ -255,3 +255,64 @@ Verify from the GUI using the existing platform login. The playbook verifies hea
 the browser asset, and anonymous denial for each new administration API. Restore
 application backup files and the protected SQLite snapshot for a rollback while
 the app and worker are stopped; do not overwrite an active database.
+
+## Automatically build additional creation engines
+
+For an existing server installation:
+
+```bash
+git -C /root/africancreativity pull --ff-only origin main && ansible-playbook -i localhost, -c local /root/africancreativity/ansible/build-creation-engines.yml
+```
+
+The playbook updates backed-up application modules, renders and checks non-silent WAV
+files under the service identity, enables selected engines in a dedicated systemd
+override, restarts, and checks health. Failed activation restores the previous engine
+selection. Existing optional AI runtimes and tenant databases are preserved. Sign in
+again or reload to refresh capabilities; Music Lab lists the verified local engines.
+Select a subset with `-e '{"creativity_creation_engines":["arpeggio","bassline"]}'`.
+
+| Engine | Controls | Output |
+|---|---|---|
+| Arpeggio sequencer | Tempo, root note, pattern seed, duration | Procedural broken-chord WAV and saved score |
+| Chord progression | Tempo, root note, duration | Procedural sustained-chord WAV and saved score |
+| Bassline sequencer | Tempo, root note, duration | Procedural bass WAV and saved score |
+
+These are original software algorithms, **not trained AI models**. Description text is
+saved as project notes and is not interpreted by the local engines. Seed changes the
+arpeggio pattern; the chord and bass engines use fixed progression patterns.
+Composition jobs cost zero credits and use the normal tenant quota, queue and asset
+permissions. WAVs are stored in Library and scores are retained in job results.
+
+### Optional MusicGen Small and Medium
+
+The existing `ansible/install-addons.yml` can now install/verify both checkpoints.
+It requires explicit acceptance of the model license, sufficient RAM (8 GB for Small;
+a conservative 16 GB CPU profile for Medium), and a real test generation before enabling
+MusicGen. CPU rendering can be slow. This does not train a new foundation model.
+
+```bash
+ansible-playbook -i localhost, -c local /root/africancreativity/ansible/install-addons.yml -e '{"creativity_addons":["audio-tools","note-tools","musicgen"],"creativity_musicgen_models":["musicgen-small","musicgen-medium"],"creativity_accept_musicgen_license":true}'
+```
+
+Only use that opt-in command after reviewing applicable rights. Meta model cards:
+https://huggingface.co/facebook/musicgen-small and
+https://huggingface.co/facebook/musicgen-medium (weights: CC-BY-NC 4.0).
+Optional model downloads/generation must be verified on the target hardware; local
+unit tests do not claim to validate the heavyweight model installation.
+
+### Promote a registered account from the server
+
+Public and tenant APIs cannot grant super-admin. Root can promote exactly one existing,
+active account by its registered email. The helper snapshots SQLite, changes the role,
+revokes the account's sessions and writes a platform audit event. Tenant ownership
+links and passwords remain intact; super-admin creative APIs are denied even if an
+original tenant link remains. Use Invitations to appoint a replacement tenant admin
+if the elevated account was the only tenant administrator.
+
+```bash
+ansible-playbook -i localhost, -c local /root/africancreativity/ansible/promote-admin.yml -e creativity_super_admin_email=dobcalldemo@gmail.com
+```
+
+Alternatively pass the same email extra variable to `build-creation-engines.yml` to
+build engines and promote the account in one invocation. Sign in again after promotion.
+No account is created if the email does not match; disabled accounts are rejected.

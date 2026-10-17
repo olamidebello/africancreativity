@@ -1,9 +1,9 @@
 """Durable queue. A single worker claims jobs atomically and validates authorization at execution."""
 import json,threading,time,shutil,subprocess,tempfile,sys
 from pathlib import Path
-import database as db,providers,media,addons
+import database as db,providers,media,addons,engines
 from database import Problem
-COSTS={'lyrics':1,'prompt':1,'storyboard':2,'speech':3,'music':10,'synth':0,'edit':0,'mix':0,'video':2,'stems':5,'export':0,'images':5,'ai_motion_video':20,'master':0,'arrange':0,'analyze':0}
+COSTS={'lyrics':1,'prompt':1,'storyboard':2,'speech':3,'music':10,'synth':0,'compose':0,'edit':0,'mix':0,'video':2,'stems':5,'export':0,'images':5,'ai_motion_video':20,'master':0,'arrange':0,'analyze':0}
 
 def validate_sources(c,u,kind,payload):
     ids=[]
@@ -28,9 +28,14 @@ def queue(c,u,d):
     if kind=='speech':
         payload={'text':db.text(payload,'text',4000),'voice':payload.get('voice','coral')}
         if payload['voice'] not in ('alloy','ash','coral','echo','fable','nova','onyx','sage','shimmer'):raise Problem('Unsupported voice')
+    if kind=='compose':
+        payload=engines.validate(payload)
+        if payload['engine'] not in engines.enabled():raise Problem('Selected local engine is not enabled',503)
     if kind=='music':
         if not payload.get('instrumental',True):raise Problem('This engine supports instrumental audio only. Singing is not configured.',422)
-        payload={'prompt':db.text(payload,'prompt',1000),'duration':db.number(payload.get('duration',10),2,25),'temperature':db.number(payload.get('temperature',1),.1,2),'guidance':db.number(payload.get('guidance',3),1,8)}
+        model_id=payload.get('engine','musicgen-small')
+        if not any(m['id']==model_id and m['ready'] for m in caps['models']) or model_id not in ('musicgen-small','musicgen-medium'):raise Problem('Selected music model is not enabled',503)
+        payload={'engine':model_id,'prompt':db.text(payload,'prompt',1000),'duration':db.number(payload.get('duration',10),2,25),'temperature':db.number(payload.get('temperature',1),.1,2),'guidance':db.number(payload.get('guidance',3),1,8)}
     validate_sources(c,u,kind,payload)
     # Daily cap and quota checked in the same transaction as debit and enqueue.
     c.execute('BEGIN IMMEDIATE') if not c.in_transaction else None
@@ -84,6 +89,10 @@ def execute(j,u):
                     selected.append((media.diskpath(a),{**s,'resource_kind':a['kind']}))
                 else:selected.append((None,s))
             media.video(source(p['audio_id'],'audio') if p.get('audio_id') else None,selected,p,out)
+        elif kind=='compose':
+            if p['engine'] not in engines.enabled():raise Problem('Selected local engine is disabled',503)
+            out=media.newfile('wav');score=engines.render(p,out)
+            return {'score':score,'engine':p['engine'],'method':'procedural; not AI'},[(out,engines.CATALOG[p['engine']],'audio','audio/wav')]
         elif kind=='synth':out=media.newfile('wav');media.synth(p,out)
         elif kind=='music':out=media.newfile('wav');providers.music(p,out)
         elif kind=='speech':out=media.newfile('wav');out.write_bytes(providers.speech(p))

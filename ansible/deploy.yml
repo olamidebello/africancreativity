@@ -92,7 +92,7 @@
             owner: root
             group: root
             mode: '0644'
-          loop: [server.py, database.py, providers.py, jobs.py, media.py, addons.py]
+          loop: [server.py, database.py, providers.py, jobs.py, media.py, addons.py, engines.py]
         - name: Install browser assets and bootstrap helper
           ansible.builtin.copy:
             src: '{{ creativity_source }}/{{ item }}/'

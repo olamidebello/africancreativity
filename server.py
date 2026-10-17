@@ -186,7 +186,7 @@ class Handler(BaseHTTPRequestHandler):
             u=self.user(c)
             if method!='GET':self.mutation(u)
             if path=='/api/me' and method=='GET':
-                tenant=c.execute('SELECT * FROM tenants WHERE id=?',(u['tenant_id'],)).fetchone()
+                tenant=None if u['role']=='super_admin' else c.execute('SELECT * FROM tenants WHERE id=?',(u['tenant_id'],)).fetchone()
                 return self.send(200,{'user':{k:u[k] for k in ('id','tenant_id','username','name','role')},'tenant':dict(tenant) if tenant else None,'csrf':u['csrf'],'capabilities':providers.capabilities()})
             if path=='/api/logout' and method=='POST':
                 c.execute('DELETE FROM sessions WHERE user_id=? AND csrf=?',(u['id'],u['csrf']));return self.send(200,{'ok':True},'session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0')

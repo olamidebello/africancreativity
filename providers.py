@@ -1,14 +1,16 @@
 """Provider calls are server-side. No synthetic output is represented as AI output."""
 import os,json,urllib.request,urllib.error,importlib.util,shutil,base64,time,re
 from database import Problem
+import engines
 
 def capabilities():
     key=bool(os.environ.get('OPENAI_API_KEY'))
     mg=os.environ.get('MUSICGEN_ENABLED')=='1' and os.environ.get('MUSICGEN_LICENSE_ACCEPTED')=='1' and all(importlib.util.find_spec(m) is not None for m in ('transformers','torch','scipy'))
     dm=os.environ.get('DEMUCS_ENABLED')=='1' and importlib.util.find_spec('demucs') is not None
-    return dict(lyrics=key,prompt=key,storyboard=key,speech=key,music=mg,stems=dm,audio_edit=bool(shutil.which('ffmpeg')),video_render=bool(shutil.which('ffmpeg')),synth=True,
+    selected=set(os.environ.get('MUSICGEN_MODELS','musicgen-small').split(','))
+    return dict(compose=bool(engines.enabled()),lyrics=key,prompt=key,storyboard=key,speech=key,music=mg,stems=dm,audio_edit=bool(shutil.which('ffmpeg')),video_render=bool(shutil.which('ffmpeg')),synth=True,
                 singing=False,voice_cloning=False,custom_models=False,images=key,ai_motion_video=key and os.environ.get('VIDEO_AI_ENABLED')=='1',
-                models=[{'id':'musicgen-small','name':'MusicGen Small · instrumental · optional','ready':mg},{'id':'synth','name':'Local note synthesizer · not AI','ready':True}])
+                models=[{'id':m,'name':name+' · instrumental · optional','ready':mg and m in selected} for m,name in [('musicgen-small','MusicGen Small'),('musicgen-medium','MusicGen Medium')]]+[{'id':'synth','name':'Local note synthesizer · not AI','ready':True}]+engines.catalog())
 
 def openai(path,data=None,binary=False):
     key=os.environ.get('OPENAI_API_KEY')
@@ -46,11 +48,14 @@ def speech(payload):
 
 def music(payload,out):
     if not capabilities()['music']:raise Problem('MusicGen is not installed/enabled with an accepted model license',503)
+    model_id=payload.get('engine','musicgen-small')
+    if model_id not in ('musicgen-small','musicgen-medium') or not any(m['id']==model_id and m['ready'] for m in capabilities()['models']):raise Problem('Selected MusicGen model is not enabled',503)
+    model_name='facebook/'+model_id
     # Lazy loading avoids installing a GPU stack for tenants using only local editing.
     import torch,scipy.io.wavfile
     from transformers import AutoProcessor,MusicgenForConditionalGeneration
-    processor=AutoProcessor.from_pretrained('facebook/musicgen-small')
-    model=MusicgenForConditionalGeneration.from_pretrained('facebook/musicgen-small',use_safetensors=True)
+    processor=AutoProcessor.from_pretrained(model_name)
+    model=MusicgenForConditionalGeneration.from_pretrained(model_name,use_safetensors=True)
     device='cuda' if torch.cuda.is_available() else 'cpu';model.to(device)
     inputs=processor(text=[payload['prompt']],padding=True,return_tensors='pt').to(device)
     with torch.no_grad():

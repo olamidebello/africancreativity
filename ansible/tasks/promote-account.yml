@@ -1,0 +1,24 @@
+---
+- name: Require a specific account email
+  ansible.builtin.assert:
+    that:
+      - creativity_super_admin_email is defined
+      - creativity_super_admin_email | length > 3
+      - creativity_install is match('^/opt/[A-Za-z0-9_-]+$')
+- name: Install protected promotion helper
+  ansible.builtin.copy:
+    src: '{{ playbook_dir }}/../deploy/promote_admin.py'
+    dest: '{{ creativity_install }}/deploy/promote_admin.py'
+    owner: root
+    group: root
+    mode: '0700'
+- name: Back up database promote account revoke sessions and audit
+  ansible.builtin.command:
+    argv: [python3, '{{ creativity_install }}/deploy/promote_admin.py', --email, '{{ creativity_super_admin_email }}']
+  environment:
+    CREATIVITY_DATA: '{{ creativity_install }}/data'
+  register: promotion
+  changed_when: promotion.rc == 0 and (promotion.stdout | from_json).changed
+- name: Report account role
+  ansible.builtin.debug:
+    msg: '{{ promotion.stdout | from_json }}'

@@ -61,7 +61,7 @@
         group: root
         mode: '0644'
         backup: true
-      loop: [server.py, database.py, static/index.html, static/app.js, static/style.css, static/mobile.html, static/mobile.js, static/downloads/africa-creativity.apk, static/downloads/africa-creativity.apk.sha256, deploy/seed_public_releases.py]
+      loop: [server.py, database.py, providers.py, jobs.py, media.py, addons.py, engines.py, static/index.html, static/app.js, static/style.css, static/mobile.html, static/mobile.js, static/downloads/africa-creativity.apk, static/downloads/africa-creativity.apk.sha256, deploy/seed_public_releases.py]
       notify: Restart application
     - name: Validate updated Python source without altering data
       ansible.builtin.command:

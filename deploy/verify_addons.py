@@ -19,13 +19,17 @@ def verify(selected,load_models=False):
         if 'musicgen' in selected:
             import torch,scipy
             from transformers import AutoProcessor,MusicgenForConditionalGeneration
-            if load_models:
-                processor=AutoProcessor.from_pretrained('facebook/musicgen-small')
-                model=MusicgenForConditionalGeneration.from_pretrained('facebook/musicgen-small',use_safetensors=True)
-                with torch.no_grad():result=model.generate(**processor(text=['An original soft instrumental'],return_tensors='pt'),max_new_tokens=50,do_sample=True)
-                if result.numel()==0:raise RuntimeError('MusicGen produced no samples')
-                reports.append({'module':'musicgen','verified':'weights loaded and short sample generated'})
-            else:reports.append({'module':'musicgen','verified':'imports only; weights and generation unverified'})
+            models=os.environ.get('MUSICGEN_MODELS','musicgen-small').split(',')
+            if not models or set(models)-{'musicgen-small','musicgen-medium'}:raise ValueError('Unsupported MusicGen model')
+            for model_id in models:
+                if load_models:
+                    processor=AutoProcessor.from_pretrained('facebook/'+model_id)
+                    model=MusicgenForConditionalGeneration.from_pretrained('facebook/'+model_id,use_safetensors=True)
+                    with torch.no_grad():result=model.generate(**processor(text=['An original soft instrumental'],return_tensors='pt'),max_new_tokens=50,do_sample=True)
+                    if result.numel()==0:raise RuntimeError('MusicGen produced no samples')
+                    reports.append({'module':model_id,'verified':'weights loaded and short sample generated'})
+                    del model,processor,result
+                else:reports.append({'module':model_id,'verified':'imports only; weights and generation unverified'})
         if 'stems' in selected:
             from demucs.pretrained import get_model
             from demucs.apply import apply_model

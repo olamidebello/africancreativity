@@ -84,7 +84,7 @@ def audit(c,u,action,resource):c.execute('INSERT INTO audit(tenant_id,actor_id,a
 def require_role(u,*roles):
     if u['role'] not in roles:raise Problem('Permission denied',403)
 def tenant_user(u):
-    if u['tenant_id'] is None:raise Problem('Select a tenant account for creative work; platform admins manage provisioning only',403)
+    if u['tenant_id'] is None or u['role']=='super_admin':raise Problem('Select a tenant account for creative work; platform admins manage provisioning only',403)
 def workspace(c,u,wid,write=False):
     w=c.execute('SELECT * FROM workspaces WHERE id=? AND tenant_id=?',(wid,u['tenant_id'])).fetchone()
     if not w:raise Problem('Workspace not found',404)
