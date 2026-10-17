@@ -1,0 +1,122 @@
+---
+# Existing Debian/Ubuntu installation:
+# git -C /root/africancreativity pull --ff-only origin main
+# ansible-playbook -i localhost, -c local /root/africancreativity/ansible/build-all.yml
+# Optional documented provider mappings: -e @/root/creation-providers.yml
+# This orchestrates existing code; it does not train/install proprietary Suno
+# models, create Platform API keys, connect the GUI to the gateway, or implement
+# missing provider-specific request schemas/polling/upload workflows.
+# Existing protected AI configuration is retained. No paid AI requests are made.
+
+- name: Check existing application and prepare gateway authentication
+  hosts: all
+  become: true
+  gather_facts: false
+  vars:
+    creativity_install: /opt/africancreativity
+  tasks:
+    - name: Require initialized application database
+      ansible.builtin.stat:
+        path: "{{ creativity_install }}/data/creativity.db"
+      register: build_database
+    - name: Validate existing installation
+      ansible.builtin.assert:
+        that:
+          - build_database.stat.isreg | default(false)
+          - creativity_install is match('^/opt/[A-Za-z0-9_-]+$')
+        fail_msg: This updater requires an initialized Africa Creativity installation.
+    - name: Prepare protected gateway configuration directory
+      ansible.builtin.file:
+        path: /etc/creation-backend
+        state: directory
+        owner: root
+        group: root
+        mode: '0700'
+    - name: Create gateway authentication once without logging credentials
+      ansible.builtin.command:
+        argv:
+          - python3
+          - -c
+          - |
+            import json, os, secrets
+            from pathlib import Path
+            path = Path('/etc/creation-backend/tenant-tokens.json')
+            if path.is_symlink():
+                raise SystemExit('Refusing a symlink credential file')
+            if not path.exists():
+                fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+                with os.fdopen(fd, 'w') as stream:
+                    json.dump({'africa-creativity': secrets.token_urlsafe(48)}, stream)
+                print('created')
+            else:
+                print('existing')
+      register: token_setup
+      changed_when: token_setup.stdout == 'created'
+      no_log: true
+      when: not ansible_check_mode
+    - name: Protect gateway token file
+      ansible.builtin.file:
+        path: /etc/creation-backend/tenant-tokens.json
+        owner: root
+        group: root
+        mode: '0600'
+      when: not ansible_check_mode
+    - name: Load existing gateway tokens privately
+      ansible.builtin.slurp:
+        src: /etc/creation-backend/tenant-tokens.json
+      register: stored_gateway_tokens
+      no_log: true
+      when:
+        - creation_tenant_tokens is not defined
+        - not ansible_check_mode
+    - name: Select persisted gateway tokens
+      ansible.builtin.set_fact:
+        creation_tenant_tokens: "{{ stored_gateway_tokens.content | b64decode | from_json }}"
+        cacheable: false
+      no_log: true
+      when:
+        - creation_tenant_tokens is not defined
+        - not ansible_check_mode
+    - name: Add selected installation to gateway deployment group
+      ansible.builtin.group_by:
+        key: creation_servers
+
+- name: Update administration and build verified local creation engines
+  ansible.builtin.import_playbook: build-creation-engines.yml
+
+- name: Install authenticated creation provider gateway
+  ansible.builtin.import_playbook: creation-backend.yml
+  when: not ansible_check_mode
+
+- name: Verify application and gateway
+  hosts: all
+  become: true
+  gather_facts: false
+  vars:
+    creativity_port: 8096
+  tasks:
+    - name: Verify application health
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ creativity_port }}/health"
+        status_code: 200
+      register: final_app_health
+      retries: 10
+      delay: 2
+      until: final_app_health.status | default(0) == 200
+      when: not ansible_check_mode
+    - name: Verify creation gateway health
+      ansible.builtin.uri:
+        url: http://127.0.0.1:8788/health
+        status_code: 200
+      when: not ansible_check_mode
+    - name: Report installed components and remaining integration requirements
+      ansible.builtin.debug:
+        msg:
+          - Existing account, administration, Android and Explore deployment checks completed.
+          - Local arpeggio, chord-pad and bassline engines rendered and verified by the imported installer.
+          - Gateway authentication, submission records and systemd service installed.
+          - Local composition engines are procedural algorithms, not trained AI models.
+          - Provider mappings remain disabled unless supplied with documented HTTPS endpoints and keys.
+          - GUI integration, provider polling and missing AI features are not created by this installer.
+          - No new OpenAI key is transferred by Git or by this playbook.
+      when: not ansible_check_mode
