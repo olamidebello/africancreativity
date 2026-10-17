@@ -84,3 +84,29 @@ Backend tests cover real WAV/MP4 rendering, permissions, invitations, publicatio
 Official integration references: [Responses](https://developers.openai.com/api/docs/guides/text), [Speech](https://developers.openai.com/api/docs/guides/text-to-speech), [Images](https://developers.openai.com/api/docs/guides/image-generation), [Sora](https://developers.openai.com/api/docs/guides/video-generation), [MusicGen](https://huggingface.co/docs/transformers/model_doc/musicgen), [checkpoint/model license](https://huggingface.co/facebook/musicgen-small).
 
 © 2026 AfricanCreativity. Original implementation; no Suno/Sondo affiliation. Third-party software and model weights retain their licenses. No new open-source license is granted by this notice.
+
+## Build and install optional add-ons
+
+`ansible/install-addons.yml` imports the base deployment, installs selected requirements into a revision-specific virtual environment, checks dependencies with pip, verifies local media processing, optionally downloads/tests selected models as the unprivileged service user, then activates a systemd override. A failed activation restores the previous override. Existing tenant databases/media are preserved by the base deployment backup flow. Python 3.10–3.12 and at least 8 GB RAM are required for the pinned optional CPU model profile. Runtime model installation has not been executed in this development workspace; the installer verifies it on the target before activation.
+
+Default modules are `audio-tools` and `note-tools`: audio measurements with an explicitly approximate tempo estimate, loudness mastering, section sequencing, note quantization, major-chord expansion and ascending arpeggiation. They are real bundled source, copied during deployment; Ansible does not invent missing application code. Access them in Library audio actions and Studio. Super-admin Engine status lists bundled add-ons.
+
+From a repository checkout on the server:
+
+```bash
+ansible-playbook -i localhost, -c local ansible/install-addons.yml
+```
+
+Select optional modules with a variables file, for example `-e @/root/creativity-addons.yml`:
+
+```yaml
+creativity_addons:
+  - audio-tools
+  - note-tools
+  - stems
+creativity_verify_models: true
+```
+
+`musicgen` additionally requires `creativity_accept_musicgen_license: true` after the operator reviews its noncommercial model-weight license. Do not set this for commercial deployment without appropriate rights. `motion-video` additionally requires an existing protected `/etc/africancreativity/ai.env` containing the intended OpenAI key; it enables the adapter, not a guarantee of API entitlement. Generated provider video is not requested by the installer. The local key is not copied to the server by Git.
+
+CPU Torch/TorchAudio are installed as a matching pinned pair from the official PyTorch wheel index. Optional dependency/model downloads require outbound access and disk capacity. Model verification can take several minutes on CPU. No voice cloning, sung-vocal engine or custom-model trainer is installed or represented as working. The detailed feature inventory remains the record of outstanding work.

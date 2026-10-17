@@ -360,8 +360,8 @@
     "source": "Suno inventory",
     "id": 52,
     "feature": "Reorder song sections",
-    "status": "Not implemented",
-    "detail": "No working control or engine is claimed for this feature."
+    "status": "Partial",
+    "detail": "Studio can concatenate selected audio sections in list order; no automatic structural section detection."
   },
   {
     "source": "Suno inventory",
@@ -409,8 +409,8 @@
     "source": "Suno inventory",
     "id": 59,
     "feature": "Remaster",
-    "status": "Not implemented",
-    "detail": "No working control or engine is claimed for this feature."
+    "status": "Partial",
+    "detail": "FFmpeg loudness mastering creates a new version; no AI remaster variations."
   },
   {
     "source": "Suno inventory",
@@ -781,7 +781,7 @@
     "id": 112,
     "feature": "Quantize",
     "status": "Partial",
-    "detail": "Grid note placement only; no timing quantize transform."
+    "detail": "Piano-note starts/durations can be quantized; no audio warp quantization."
   },
   {
     "source": "Suno inventory",
@@ -1032,15 +1032,15 @@
     "source": "Suno inventory",
     "id": 148,
     "feature": "Chord modes",
-    "status": "Not implemented",
-    "detail": "No working control or engine is claimed for this feature."
+    "status": "Partial",
+    "detail": "Major-triad expansion from existing piano notes; no broad chord-mode engine."
   },
   {
     "source": "Suno inventory",
     "id": 149,
     "feature": "Arpeggiator",
-    "status": "Not implemented",
-    "detail": "No working control or engine is claimed for this feature."
+    "status": "Partial",
+    "detail": "Ascending fixed-step arpeggiation of notes; no real-time hold/chord arpeggiator."
   },
   {
     "source": "Suno inventory",

@@ -1,9 +1,9 @@
 """Durable queue. A single worker claims jobs atomically and validates authorization at execution."""
-import json,threading,time,shutil,subprocess,tempfile
+import json,threading,time,shutil,subprocess,tempfile,sys
 from pathlib import Path
-import database as db,providers,media
+import database as db,providers,media,addons
 from database import Problem
-COSTS={'lyrics':1,'prompt':1,'storyboard':2,'speech':3,'music':10,'synth':0,'edit':0,'mix':0,'video':2,'stems':5,'export':0,'images':5,'ai_motion_video':20}
+COSTS={'lyrics':1,'prompt':1,'storyboard':2,'speech':3,'music':10,'synth':0,'edit':0,'mix':0,'video':2,'stems':5,'export':0,'images':5,'ai_motion_video':20,'master':0,'arrange':0,'analyze':0}
 
 def validate_sources(c,u,kind,payload):
     ids=[]
@@ -18,7 +18,7 @@ def queue(c,u,d):
     if p['trashed']:raise Problem('Restore the project first')
     kind=d.get('kind');payload=d.get('payload',{})
     if kind not in COSTS or not isinstance(payload,dict) or len(json.dumps(payload))>100000:raise Problem('Invalid job')
-    caps=providers.capabilities();cap={'music':'music','stems':'stems','video':'video_render','edit':'audio_edit','mix':'audio_edit','export':'audio_edit'}.get(kind,kind)
+    caps=providers.capabilities();cap={'music':'music','stems':'stems','video':'video_render','edit':'audio_edit','mix':'audio_edit','export':'audio_edit','master':'audio_edit','arrange':'audio_edit','analyze':'audio_edit'}.get(kind,kind)
     if not caps.get(cap):raise Problem('This engine is not configured. See Account → Engine status.',503)
     if kind in ('lyrics','prompt','storyboard'):
         payload={'prompt':db.text(payload,'prompt',6000 if kind!='storyboard' else 12000)}
@@ -59,6 +59,13 @@ def execute(j,u):
         return media.diskpath(a)
     try:
         if kind in ('lyrics','prompt','storyboard'):return {'text':providers.assist(kind,p['prompt'])},[]
+        if kind=='analyze':return {'text':addons.analyze(source(p.get('asset_id'),'audio'))},[]
+        if kind=='master':
+            out=media.newfile('wav');addons.master(source(p.get('asset_id'),'audio'),p,out);return {},[(out,'Loudness master','audio','audio/wav')]
+        if kind=='arrange':
+            out=media.newfile('wav');clips=p.get('clips',[])
+            addons.arrange([(source(clip.get('asset_id'),'audio'),clip) for clip in clips],out)
+            return {},[(out,'Section arrangement','audio','audio/wav')]
         if kind=='images':
             out=media.newfile('png');out.write_bytes(providers.image(p));return {},[(out,'Generated scene image','image','image/png')]
         if kind=='ai_motion_video':
@@ -92,7 +99,7 @@ def execute(j,u):
         elif kind=='stems':
             src=source(p.get('asset_id'),'audio')
             with tempfile.TemporaryDirectory() as d:
-                media.run(['python','-m','demucs','--two-stems','vocals','-n','htdemucs','-o',d,str(src)],1800)
+                media.run([sys.executable,'-m','demucs','--two-stems','vocals','-n','htdemucs','-o',d,str(src)],1800)
                 files=[]
                 for name in ('vocals','no_vocals'):
                     f=list(Path(d).rglob(name+'.wav'))

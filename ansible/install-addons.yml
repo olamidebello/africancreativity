@@ -1,0 +1,187 @@
+---
+# Run from a checkout: this imports the base deployment with its backup/recovery flow.
+- name: Deploy reviewed platform and bundled source modules
+  ansible.builtin.import_playbook: deploy.yml
+
+- name: Build, verify and activate selected creative add-ons
+  hosts: all
+  become: true
+  vars:
+    creativity_source: /opt/africancreativity-source
+    creativity_install: /opt/africancreativity
+    creativity_port: 8096
+    creativity_addons: [audio-tools, note-tools]
+    creativity_accept_musicgen_license: false
+    creativity_verify_models: true
+    creativity_runtime_root: /opt/africancreativity-runtimes
+  tasks:
+    - name: Validate selected modules and deployment paths
+      ansible.builtin.assert:
+        that:
+          - creativity_addons is sequence and creativity_addons is not string
+          - creativity_addons | difference(['audio-tools', 'note-tools', 'musicgen', 'stems', 'motion-video']) | length == 0
+          - creativity_install is match('^/opt/[A-Za-z0-9_-]+$')
+          - creativity_source is match('^/opt/[A-Za-z0-9_-]+$')
+          - creativity_runtime_root is match('^/opt/[A-Za-z0-9_-]+$')
+          - creativity_port | int >= 1024 and creativity_port | int <= 65535
+          - "'musicgen' not in creativity_addons or creativity_accept_musicgen_license | bool"
+        fail_msg: Unknown module/path or unaccepted MusicGen model license. MusicGen weights have noncommercial restrictions; do not enable them for a commercial service without appropriate permission.
+    - name: Require supported Python for pinned optional engine wheels
+      ansible.builtin.assert:
+        that:
+          - ansible_python.version.major == 3
+          - ansible_python.version.minor | int >= 10
+          - ansible_python.version.minor | int <= 12
+      when: "'musicgen' in creativity_addons or 'stems' in creativity_addons"
+    - name: Check capacity for optional CPU model engines
+      ansible.builtin.assert:
+        that:
+          - ansible_memtotal_mb | int >= 7500
+        fail_msg: Optional model engines require at least 8 GB RAM for this deployment profile. CPU generation can be slow; use a separately reviewed GPU runtime for higher throughput.
+      when: "'musicgen' in creativity_addons or 'stems' in creativity_addons"
+    - name: Install build and media dependencies
+      ansible.builtin.apt:
+        name: [python3-venv, python3-dev, build-essential, ffmpeg, fonts-dejavu-core, libgomp1, libsndfile1]
+        state: present
+        update_cache: true
+    - name: Read exact source revision
+      ansible.builtin.command:
+        argv: [git, -C, '{{ creativity_source }}', rev-parse, HEAD]
+      changed_when: false
+      register: addon_revision
+    - name: Select immutable dependency environment
+      ansible.builtin.set_fact:
+        addon_runtime: '{{ creativity_runtime_root }}/{{ addon_revision.stdout }}-{{ creativity_addons | sort | join("-") }}'
+    - name: Create protected writable model cache
+      ansible.builtin.file:
+        path: '{{ creativity_install }}/data/model-cache'
+        state: directory
+        owner: africancreativity
+        group: africancreativity
+        mode: '0700'
+    - name: Create versioned isolated runtime
+      ansible.builtin.command:
+        argv: [python3, -m, venv, '{{ addon_runtime }}']
+        creates: '{{ addon_runtime }}/bin/python'
+    - name: Install packaging tools in the isolated runtime
+      ansible.builtin.pip:
+        name: [pip, wheel, setuptools]
+        virtualenv: '{{ addon_runtime }}'
+        state: present
+    - name: Install matching CPU PyTorch and TorchAudio wheels
+      ansible.builtin.pip:
+        name: ['torch==2.8.0', 'torchaudio==2.8.0']
+        virtualenv: '{{ addon_runtime }}'
+        extra_args: --index-url https://download.pytorch.org/whl/cpu
+      when: "'musicgen' in creativity_addons or 'stems' in creativity_addons"
+    - name: Install MusicGen dependencies
+      ansible.builtin.pip:
+        requirements: '{{ creativity_source }}/requirements/musicgen.txt'
+        virtualenv: '{{ addon_runtime }}'
+      when: "'musicgen' in creativity_addons"
+    - name: Install stem-separation dependencies
+      ansible.builtin.pip:
+        requirements: '{{ creativity_source }}/requirements/stems.txt'
+        virtualenv: '{{ addon_runtime }}'
+      when: "'stems' in creativity_addons"
+    - name: Verify dependency consistency
+      ansible.builtin.command:
+        argv: ['{{ addon_runtime }}/bin/python', -m, pip, check]
+      changed_when: false
+    - name: Copy add-on runtime verification helper
+      ansible.builtin.copy:
+        src: '{{ creativity_source }}/deploy/verify_addons.py'
+        dest: '{{ creativity_install }}/deploy/verify_addons.py'
+        remote_src: true
+        mode: '0644'
+    - name: Exercise media processing and optionally build model caches before activation
+      become_user: africancreativity
+      ansible.builtin.command:
+        argv: "{{ [addon_runtime + '/bin/python', creativity_install + '/deploy/verify_addons.py', '--modules', creativity_addons | to_json] + (['--load-models'] if creativity_verify_models | bool else []) }}"
+      environment:
+        HF_HOME: '{{ creativity_install }}/data/model-cache/huggingface'
+        TORCH_HOME: '{{ creativity_install }}/data/model-cache/torch'
+        OMP_NUM_THREADS: '2'
+      changed_when: false
+      register: addon_verification
+    - name: Check protected AI configuration before enabling motion video
+      ansible.builtin.command:
+        argv:
+          - python3
+          - -c
+          - "from pathlib import Path; import re; p=Path('/etc/africancreativity/ai.env'); assert p.is_file() and re.search(r'^OPENAI_API_KEY\\s*=\\s*[^\\s#]+',p.read_text(),re.M), 'Configure a protected OpenAI key before enabling motion video'"
+      changed_when: false
+      no_log: true
+      when: "'motion-video' in creativity_addons"
+    - name: Write isolated module configuration for this runtime
+      ansible.builtin.copy:
+        dest: '/etc/africancreativity/addons-{{ addon_revision.stdout }}-{{ creativity_addons | sort | join("-") }}.env'
+        mode: '0600'
+        content: |
+          MUSICGEN_ENABLED={{ ('musicgen' in creativity_addons) | ternary('1','0') }}
+          MUSICGEN_LICENSE_ACCEPTED={{ creativity_accept_musicgen_license | bool | ternary('1','0') }}
+          DEMUCS_ENABLED={{ ('stems' in creativity_addons) | ternary('1','0') }}
+          VIDEO_AI_ENABLED={{ ('motion-video' in creativity_addons) | ternary('1','0') }}
+    - name: Create systemd add-on configuration directory
+      ansible.builtin.file:
+        path: /etc/systemd/system/africancreativity.service.d
+        state: directory
+        mode: '0755'
+    - name: Read previous add-on service configuration for recovery
+      ansible.builtin.slurp:
+        src: /etc/systemd/system/africancreativity.service.d/addons.conf
+      register: previous_addons
+      failed_when: false
+    - name: Activate verified add-on environment
+      block:
+        - name: Configure runtime and selected engines
+          ansible.builtin.copy:
+            dest: /etc/systemd/system/africancreativity.service.d/addons.conf
+            mode: '0644'
+            content: |
+              [Service]
+              ExecStart=
+              ExecStart={{ addon_runtime }}/bin/python {{ creativity_install }}/server.py --host 127.0.0.1 --port {{ creativity_port }}
+              EnvironmentFile=/etc/africancreativity/addons-{{ addon_revision.stdout }}-{{ creativity_addons | sort | join("-") }}.env
+              Environment=HF_HOME={{ creativity_install }}/data/model-cache/huggingface
+              Environment=TORCH_HOME={{ creativity_install }}/data/model-cache/torch
+              Environment=OMP_NUM_THREADS=2
+        - name: Restart verified runtime
+          ansible.builtin.systemd:
+            name: africancreativity
+            state: restarted
+            enabled: true
+            daemon_reload: true
+        - name: Verify application health after activation
+          ansible.builtin.uri:
+            url: 'http://127.0.0.1:{{ creativity_port }}/health'
+            status_code: 200
+          register: addon_health
+          until: addon_health.status | default(0) == 200
+          retries: 15
+          delay: 2
+      rescue:
+        - name: Restore previous add-on configuration
+          ansible.builtin.copy:
+            content: '{{ previous_addons.content | b64decode }}'
+            dest: /etc/systemd/system/africancreativity.service.d/addons.conf
+            mode: '0644'
+          when: previous_addons.content is defined
+        - name: Remove first-time override when activation failed
+          ansible.builtin.file:
+            path: /etc/systemd/system/africancreativity.service.d/addons.conf
+            state: absent
+          when: previous_addons.content is not defined
+        - name: Restore previous runtime
+          ansible.builtin.systemd:
+            name: africancreativity
+            state: restarted
+            daemon_reload: true
+        - name: Report activation failure
+          ansible.builtin.fail:
+            msg: Add-on activation failed; the previous service runtime was restored. No generated provider job was retried.
+    - name: Report module verification and remaining external requirements
+      ansible.builtin.debug:
+        msg:
+          - '{{ addon_verification.stdout | from_json }}'
+          - 'Tenant data and credits remain in the existing database. Check Engine status in the super-admin GUI. Sung vocals, voice cloning and custom model training still require separate implementations/licensed engines; this installer does not claim to create them.'

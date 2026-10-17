@@ -5,7 +5,7 @@ from urllib.parse import urlparse,parse_qs
 from http.cookies import SimpleCookie
 from pathlib import Path
 import json,os,secrets,base64,mimetypes,sqlite3,re,io,zipfile,argparse,getpass
-import database as db,providers,jobs,media
+import database as db,providers,jobs,media,addons
 from database import Problem
 
 class Handler(BaseHTTPRequestHandler):
@@ -298,7 +298,7 @@ class Handler(BaseHTTPRequestHandler):
                 c.execute('DELETE FROM sessions WHERE user_id IN (SELECT id FROM users WHERE tenant_id=?)',(tid,))
                 for j in c.execute("SELECT * FROM jobs WHERE tenant_id=? AND state='queued'",(tid,)).fetchall():db.refund(c,j,'Tenant suspended')
             db.audit(c,u,'update.tenant',tid);return self.send(200,{'ok':True})
-        if path=='/api/admin/status' and method=='GET':return self.send(200,{'capabilities':providers.capabilities(),'queue':[dict(x) for x in c.execute('SELECT state,count(*) as count FROM jobs GROUP BY state')],'audit':[dict(x) for x in c.execute('SELECT * FROM audit WHERE tenant_id IS NULL ORDER BY id DESC LIMIT 100')]})
+        if path=='/api/admin/status' and method=='GET':return self.send(200,{'capabilities':providers.capabilities(),'addons':addons.status(),'queue':[dict(x) for x in c.execute('SELECT state,count(*) as count FROM jobs GROUP BY state')],'audit':[dict(x) for x in c.execute('SELECT * FROM audit WHERE tenant_id IS NULL ORDER BY id DESC LIMIT 100')]})
         raise Problem('Not found',404)
 
 if __name__=='__main__':

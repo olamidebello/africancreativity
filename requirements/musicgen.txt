@@ -1,0 +1,5 @@
+# PyTorch/torchaudio are installed first from the official CPU wheel index.
+numpy==1.26.4
+transformers==4.46.3
+scipy==1.14.1
+sentencepiece==0.2.0

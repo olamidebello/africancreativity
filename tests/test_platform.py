@@ -99,6 +99,13 @@ class PlatformTest(unittest.TestCase):
         self.patch(song,visibility='private');self.assertEqual(guest.call('public/'+str(collection))[1]['tracks'],[])
     def test_trash_removes_public_access(self):
         pid=self.project();aid=self.upload(pid);self.patch(pid,visibility='public',trashed=1);self.assertEqual(Client(self.port).call('public/'+str(pid))[0],404);self.assertEqual(self.a.call('projects/'+str(pid),'DELETE')[0],200);self.assertEqual(self.a.call('media/'+str(aid))[0],404)
+    def test_audio_addon_master_arrange_and_measurements(self):
+        pid=self.project();aid=self.upload(pid)
+        for kind,payload in [('master',{'asset_id':aid,'loudness':-16}),('arrange',{'clips':[{'asset_id':aid,'trim':0,'duration':.3},{'asset_id':aid,'trim':.4,'duration':.2}]}),('analyze',{'asset_id':aid})]:
+            status,d=self.a.call('jobs','POST',dict(project_id=pid,kind=kind,payload=payload));self.assertEqual(status,202,d);jobs.process_one()
+            result=next(j for j in self.a.call('jobs')[1]['jobs'] if j['id']==d['id']);self.assertEqual(result['state'],'completed',result)
+            if kind=='analyze':self.assertEqual(result['result']['text']['duration_seconds'],1);self.assertIsNone(result['result']['text']['estimated_bpm'])
+            else:self.assertTrue(result['result']['asset_ids'])
     def test_cancel_queued_job_refunds_and_cannot_cancel_twice(self):
         pid=self.project();before=self.a.call('account')[1]['tenant']['credits']
         with patch.object(providers,'capabilities',return_value={**providers.capabilities(),'speech':True}):

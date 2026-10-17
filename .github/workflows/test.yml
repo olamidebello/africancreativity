@@ -17,4 +17,5 @@ jobs:
       - run: npm ci && npm test
         working-directory: tests/browser
       - run: pip install ansible-core
-      - run: ansible-playbook -i localhost, --syntax-check ansible/deploy.yml
+      - run: ansible-playbook -i localhost, --syntax-check ansible/install-addons.yml
+      - run: python deploy/verify_addons.py --modules '["audio-tools","note-tools"]'

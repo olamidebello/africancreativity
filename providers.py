@@ -50,7 +50,7 @@ def music(payload,out):
     import torch,scipy.io.wavfile
     from transformers import AutoProcessor,MusicgenForConditionalGeneration
     processor=AutoProcessor.from_pretrained('facebook/musicgen-small')
-    model=MusicgenForConditionalGeneration.from_pretrained('facebook/musicgen-small')
+    model=MusicgenForConditionalGeneration.from_pretrained('facebook/musicgen-small',use_safetensors=True)
     device='cuda' if torch.cuda.is_available() else 'cpu';model.to(device)
     inputs=processor(text=[payload['prompt']],padding=True,return_tensors='pt').to(device)
     with torch.no_grad():

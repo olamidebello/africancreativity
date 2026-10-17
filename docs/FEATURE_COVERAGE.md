@@ -59,14 +59,14 @@ The new tenant provisioning and isolation are additional features, covered in RE
 | 49 | Replace Section | Not implemented | No working control or engine is claimed for this feature. |
 | 50 | Quick Replace | Not implemented | No working control or engine is claimed for this feature. |
 | 51 | Rewrite section lyrics | Not implemented | No working control or engine is claimed for this feature. |
-| 52 | Reorder song sections | Not implemented | No working control or engine is claimed for this feature. |
+| 52 | Reorder song sections | Partial | Studio can concatenate selected audio sections in list order; no automatic structural section detection. |
 | 53 | Crop | Implemented | See README for workflow and limits. |
 | 54 | Fade In | Implemented | See README for workflow and limits. |
 | 55 | Fade Out | Implemented | See README for workflow and limits. |
 | 56 | Fade-length handles | Partial | Numeric fade duration, not draggable handles. |
 | 57 | Tempo display | Implemented | See README for workflow and limits. |
 | 58 | Get Stems | Provider-dependent | Optional Demucs two-stem pipeline; disabled until installed. |
-| 59 | Remaster | Not implemented | No working control or engine is claimed for this feature. |
+| 59 | Remaster | Partial | FFmpeg loudness mastering creates a new version; no AI remaster variations. |
 | 60 | Song list | Implemented | See README for workflow and limits. |
 | 61 | Liked | Implemented | See README for workflow and limits. |
 | 62 | Playlists | Implemented | See README for workflow and limits. |
@@ -119,7 +119,7 @@ The new tenant provisioning and isolation are additional features, covered in RE
 | 109 | Reverse | Implemented | See README for workflow and limits. |
 | 110 | Stretch | Partial | Offline speed processing, not shift-drag warp stretching. |
 | 111 | Warp markers | Not implemented | No working control or engine is claimed for this feature. |
-| 112 | Quantize | Partial | Grid note placement only; no timing quantize transform. |
+| 112 | Quantize | Partial | Piano-note starts/durations can be quantized; no audio warp quantization. |
 | 113 | Pitch | Implemented | See README for workflow and limits. |
 | 114 | Formant | Not implemented | No working control or engine is claimed for this feature. |
 | 115 | Speed | Implemented | See README for workflow and limits. |
@@ -155,8 +155,8 @@ The new tenant provisioning and isolation are additional features, covered in RE
 | 145 | Key Scale assist | Not implemented | No working control or engine is claimed for this feature. |
 | 146 | Musical typing | Implemented | See README for workflow and limits. |
 | 147 | On-screen keyboard | Implemented | See README for workflow and limits. |
-| 148 | Chord modes | Not implemented | No working control or engine is claimed for this feature. |
-| 149 | Arpeggiator | Not implemented | No working control or engine is claimed for this feature. |
+| 148 | Chord modes | Partial | Major-triad expansion from existing piano notes; no broad chord-mode engine. |
+| 149 | Arpeggiator | Partial | Ascending fixed-step arpeggiation of notes; no real-time hold/chord arpeggiator. |
 | 150 | External MIDI input | Implemented | See README for workflow and limits. |
 | 151 | Audio-to-MIDI | Not implemented | No working control or engine is claimed for this feature. |
 | 152 | MIDI-to-generated audio | Partial | Local synthesizer renders notes; not a generative model interpretation. |
