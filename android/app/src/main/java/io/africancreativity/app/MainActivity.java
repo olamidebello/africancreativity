@@ -24,7 +24,7 @@ import android.widget.TextView;
 
 /** Online creative studio client. Patient records remain on the creative studio service. */
 public final class MainActivity extends Activity {
-    private static final String HOME = "https://olamideolatayobello.com/";
+    private static final String HOME = "https://africancreativity.io/";
     private WebView web;
     private LinearLayout root;
     private TextView notice;
@@ -33,7 +33,7 @@ public final class MainActivity extends Activity {
     private ValueCallback<Uri[]> pendingFiles;
     private static final int AUDIO_REQUEST = 21, FILE_REQUEST = 22;
     private boolean trusted(Uri uri) {
-        return "https".equalsIgnoreCase(uri.getScheme()) && "olamideolatayobello.com".equalsIgnoreCase(uri.getHost())
+        return "https".equalsIgnoreCase(uri.getScheme()) && "africancreativity.io".equalsIgnoreCase(uri.getHost())
                 && (uri.getPort() == -1 || uri.getPort() == 443);
     }
 
@@ -71,7 +71,7 @@ public final class MainActivity extends Activity {
             @Override public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 Uri uri = request.getUrl();
                 boolean https = "https".equalsIgnoreCase(uri.getScheme());
-                if (https && "olamideolatayobello.com".equalsIgnoreCase(uri.getHost())
+                if (https && "africancreativity.io".equalsIgnoreCase(uri.getHost())
                         && (uri.getPort() == -1 || uri.getPort() == 443)) return false;
                 if (request.isForMainFrame() && request.hasGesture() && https) {
                     try { startActivity(new Intent(Intent.ACTION_VIEW, uri)); }

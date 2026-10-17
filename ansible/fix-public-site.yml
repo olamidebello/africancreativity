@@ -4,8 +4,8 @@
   become: true
   gather_facts: false
   vars:
-    creativity_domain: olamideolatayobello.com
-    creativity_nginx_site: '/etc/nginx/sites-enabled/{{ creativity_domain }}'
+    creativity_domain: africancreativity.io
+    creativity_nginx_site: /etc/nginx/sites-enabled/africancreativity.io
     creativity_backend_port: 8096
   tasks:
     - name: Check application health before changing Nginx
