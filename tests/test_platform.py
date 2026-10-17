@@ -31,6 +31,7 @@ class PlatformTest(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):cls.http.shutdown();cls.http.server_close();cls.tmp.cleanup()
     def setUp(self):
+        with db.connect() as c:c.execute("DELETE FROM login_limits WHERE ip LIKE 'register:%'")
         self.a=Client(self.port).login('alice');self.b=Client(self.port).login('bob');self.admin=Client(self.port).login('platform')
     def project(self,client=None,kind='song',body=None):
         status,d=(client or self.a).call('projects','POST',dict(title='Test idea',kind=kind,body=body or {}));self.assertEqual(status,201,d);return d['id']
@@ -149,7 +150,7 @@ class PlatformTest(unittest.TestCase):
             with db.connect() as c:c.execute('UPDATE tenants SET storage_mb=500 WHERE id=1')
 
     def registration(self,username='new-artist',password=' signup-password-123 '):
-        return dict(username=username,name='New Artist',password=password,password_confirmation=password)
+        return dict(username=username,email=username.lower()+'@example.test',name='New Artist',password=password,password_confirmation=password,phone='+1 555 0100',country='Nigeria',workspace_name='Artist Studio')
     def test_public_signup_persists_private_workspace_and_session(self):
         client=Client(self.port)
         s,d=client.call('register','POST',self.registration())
@@ -198,5 +199,51 @@ class PlatformTest(unittest.TestCase):
             self.assertIn(b'id="public-explore"',response.read())
         status,data=Client(self.port).call('explore')
         self.assertEqual(status,200);self.assertIsInstance(data['projects'],list)
+
+    def test_registration_email_login_profile_and_optional_username(self):
+        client=Client(self.port);data=self.registration('mail-artist');data.pop('username');data['email']='EMAIL-ARTIST@example.test'
+        status,result=client.call('register','POST',data);self.assertEqual(status,201,result);client.csrf=result['csrf']
+        profile=client.call('profile')[1];self.assertEqual(profile['email'],'email-artist@example.test');self.assertEqual(profile['phone'],'+1 555 0100')
+        self.assertEqual(client.call('me')[1]['tenant']['name'],'Artist Studio')
+        self.assertEqual(client.call('logout','POST',{})[0],200)
+        status,result=client.call('login','POST',dict(username='EMAIL-ARTIST@example.test',password=data['password']));self.assertEqual(status,200,result);client.csrf=result['csrf']
+        self.assertEqual(client.call('profile','PATCH',dict(name='Updated Artist',email='updated-artist@example.test',phone='',country='Ghana'))[0],200)
+        self.assertEqual(client.call('profile')[1]['country'],'Ghana')
+    def test_registration_invalid_email_and_duplicate_are_rejected(self):
+        client=Client(self.port);data=self.registration('invalid-email');data['email']='not-an-email'
+        self.assertEqual(client.call('register','POST',data)[0],400)
+        data=self.registration('first-email-owner');data['email']='unique-owner@example.test'
+        status,result=client.call('register','POST',data);self.assertEqual(status,201,result)
+        data=self.registration('second-email-owner');data['email']='UNIQUE-OWNER@example.test'
+        status,result=client.call('register','POST',data);self.assertEqual(status,409,result)
+        with db.connect() as c:
+            self.assertEqual(c.execute('SELECT count(*) FROM account_profiles WHERE email=?',('unique-owner@example.test',)).fetchone()[0],1)
+            self.assertIsNone(c.execute('SELECT 1 FROM users WHERE username=?',('second-email-owner',)).fetchone())
+    def test_signup_rate_limit_survives_failed_attempts(self):
+        client=Client(self.port);data=self.registration('ALICE')
+        for _ in range(5):self.assertEqual(client.call('register','POST',data)[0],409)
+        self.assertEqual(client.call('register','POST',self.registration('limited-registration'))[0],429)
+    def test_public_sample_seed_creates_playable_audio_once(self):
+        import importlib.util
+        spec=importlib.util.spec_from_file_location('sample_seed',Path(__file__).parents[1]/'deploy/seed_public_releases.py');seed=importlib.util.module_from_spec(spec);spec.loader.exec_module(seed)
+        ids=seed.seed();self.assertEqual(len(ids),3);self.assertEqual(seed.seed(),ids)
+        client=Client(self.port);listing=client.call('explore')[1]['projects'];self.assertEqual(len([p for p in listing if p.get('sample')]),3)
+        for pid in ids:
+            status,release=client.call('public/'+str(pid));self.assertEqual(status,200)
+            asset=release['assets'][0];self.assertGreater(asset['duration'],5)
+            status,audio=client.call('public-media/'+str(asset['id']));self.assertEqual(status,200);self.assertEqual(audio[:4],b'RIFF')
+            self.assertEqual(self.a.call('projects/'+str(pid))[0],404)
+
+    def test_mobile_download_page_and_apk_are_public(self):
+        import hashlib
+        client=Client(self.port)
+        with urllib.request.urlopen(client.base+'/mobile') as response:
+            self.assertEqual(response.status,200);self.assertIn(b'Download Android app',response.read())
+        with urllib.request.urlopen(client.base+'/downloads/africa-creativity.apk') as response:
+            apk=response.read();self.assertEqual(apk[:2],b'PK');self.assertEqual(response.headers.get_content_type(),'application/vnd.android.package-archive')
+        with urllib.request.urlopen(client.base+'/downloads/africa-creativity.apk.sha256') as response:
+            self.assertEqual(response.read().decode().split()[0],hashlib.sha256(apk).hexdigest())
+        with self.assertRaises(urllib.error.HTTPError) as caught:urllib.request.urlopen(client.base+'/downloads/private.jks')
+        self.assertEqual(caught.exception.code,404)
 
 if __name__=='__main__':unittest.main()

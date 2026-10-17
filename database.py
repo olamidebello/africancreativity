@@ -23,6 +23,7 @@ def init():
         PRAGMA journal_mode=WAL;
         CREATE TABLE IF NOT EXISTS tenants(id INTEGER PRIMARY KEY,name TEXT NOT NULL,slug TEXT NOT NULL UNIQUE,status TEXT NOT NULL DEFAULT 'active',plan TEXT NOT NULL DEFAULT 'starter',credits INTEGER NOT NULL DEFAULT 100,storage_mb INTEGER NOT NULL DEFAULT 500,version INTEGER NOT NULL DEFAULT 1,created REAL NOT NULL);
         CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY,tenant_id INTEGER REFERENCES tenants(id),username TEXT UNIQUE NOT NULL,name TEXT NOT NULL,password TEXT NOT NULL,role TEXT NOT NULL,active INTEGER NOT NULL DEFAULT 1,created REAL NOT NULL);
+        CREATE TABLE IF NOT EXISTS account_profiles(user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,email TEXT UNIQUE COLLATE NOCASE NOT NULL,phone TEXT NOT NULL DEFAULT '',country TEXT NOT NULL DEFAULT '',created REAL NOT NULL,updated REAL NOT NULL);
         CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,user_id INTEGER REFERENCES users(id),expires REAL NOT NULL,csrf TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS invitations(id INTEGER PRIMARY KEY,tenant_id INTEGER NOT NULL REFERENCES tenants(id),token TEXT UNIQUE NOT NULL,role TEXT NOT NULL,expires REAL NOT NULL,used INTEGER NOT NULL DEFAULT 0);
         CREATE TABLE IF NOT EXISTS workspaces(id INTEGER PRIMARY KEY,tenant_id INTEGER NOT NULL REFERENCES tenants(id),owner_id INTEGER NOT NULL REFERENCES users(id),name TEXT NOT NULL,created REAL NOT NULL);
@@ -41,6 +42,12 @@ def init():
 
 def now():return time.time()
 def digest(s):return hashlib.sha256(s.encode()).hexdigest()
+def email_address(value):
+    if not isinstance(value,str):raise Problem('Enter a valid email address')
+    value=value.strip().lower()
+    if len(value)>254 or not re.fullmatch(r"[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+",value):raise Problem('Enter a valid email address')
+    return value
+
 def password_input(d):
     p=d.get('password')
     if not isinstance(p,str) or not 1<=len(p)<=256:raise Problem('Enter a password of at most 256 characters')

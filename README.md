@@ -154,3 +154,64 @@ git -C /root/africancreativity pull --ff-only origin main && ansible-playbook -i
 
 This update uses existing tables and does not replace or reset the database,
 AI configuration, isolated add-on runtime, media files or Nginx configuration.
+
+### Complete registration and populated Explore
+
+The account screen now provides visible Sign in / Create account controls.
+Registration requires full name, email, password and password confirmation;
+username, phone, country and workspace name are optional. A username is generated
+when omitted. Invalid client-side username pattern restrictions are removed;
+server validation remains authoritative. Users can sign in using email or their
+username. Existing username-only accounts continue to work.
+
+An additive `account_profiles` SQLite table stores a unique normalized email,
+phone, country and timestamps linked to the existing user. Passwords remain
+scrypt hashes in `users`. Profile read/update is authenticated, self-scoped and
+CSRF-protected. Account & team contains a working Save profile action. Email
+verification, email password reset and OAuth are not configured or represented
+as working services. No automatic administrator privileges or paid AI credits
+are granted to public registrations.
+
+Deployment also runs `deploy/seed_public_releases.py`, which creates three
+original local-synth instrumentals with real WAV assets and public projects in
+a dedicated sample tenant. Cards are labeled Original sample; no fabricated
+artists, plays or likes are added. Running the seed again does not duplicate
+releases, and intentionally removed/hidden samples stay removed. Creator-owned
+private releases are never made public. Explore includes search and type filters.
+
+Use the existing one-command `ansible/deploy-auth-fixes.yml` deployment. It takes
+a protected SQLite online backup, installs the account/frontend update, restarts
+the service (which adds the new table), seeds samples as the unprivileged service
+user, and verifies signup markup and public releases. Keep the backup private:
+it contains account hashes and creator records. It does not reset credentials,
+media, quotas, Nginx, AI keys or add-on runtime configuration.
+
+### Android download
+
+The public `/mobile` page is linked from sign-in and the signed-in sidebar.
+`/downloads/africa-creativity.apk` is the signed Android 8+ online client (v1.0.0),
+with an adjacent SHA-256 checksum. It uses https://africancreativity.io and the
+same database-backed account, profile, project and release APIs. It supports
+Android's file picker and asks for runtime microphone permission when recording
+is requested from the trusted site. Other origins cannot obtain native capture
+permissions. Cleartext, mixed content, file/content URL access, third-party
+cookies and Android app backups are disabled; no native JavaScript bridge or
+embedded credentials are provided.
+
+This is a direct APK distribution, not a Google Play or iOS App Store release.
+Device microphone/file-picker testing remains required. Browser-generated blob
+exports and hardware Web MIDI are not implemented natively; use the system
+browser for those operations. No offline generation or push service is claimed.
+
+Build using JDK 17 and Android SDK platform 35 / build-tools 35.0.0:
+
+```bash
+ANDROID_HOME=/path/to/android-sdk bash scripts/build-mobile.sh
+```
+
+The private release key is outside Git in
+`$HOME/.local/share/africancreativity-signing` or `CREATIVITY_SIGNING_DIR`.
+Back it up privately. Every update must reuse this signing key and increment
+manifest versionCode. The initial key backup is retained separately from the
+public source/package. Never publish the signing archive or password.
+The account deployment playbook also installs and checks the APK.

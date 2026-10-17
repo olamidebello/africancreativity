@@ -15,6 +15,44 @@
       ansible.builtin.assert:
         that: existing_database.stat.exists
         fail_msg: Run the main deployment before applying this update.
+    - name: Create protected database backup directory
+      ansible.builtin.file:
+        path: /var/backups/africancreativity
+        state: directory
+        owner: root
+        group: root
+        mode: '0700'
+    - name: Allocate a database snapshot file
+      ansible.builtin.tempfile:
+        state: file
+        path: /var/backups/africancreativity
+        prefix: registration-before-
+        suffix: .db
+      register: registration_backup
+      when: not ansible_check_mode
+    - name: Take a consistent SQLite online backup
+      ansible.builtin.command:
+        argv:
+          - python3
+          - -c
+          - "import sqlite3,sys; source=sqlite3.connect('file:'+sys.argv[1]+'?mode=ro',uri=True); destination=sqlite3.connect(sys.argv[2]); source.backup(destination); destination.close(); source.close()"
+          - '{{ creativity_install }}/data/creativity.db'
+          - '{{ registration_backup.path }}'
+      when: not ansible_check_mode
+    - name: Ensure service verification temporary directory exists
+      ansible.builtin.file:
+        path: /var/tmp/africancreativity-ansible
+        state: directory
+        owner: africancreativity
+        group: africancreativity
+        mode: '0700'
+    - name: Create public Android downloads directory
+      ansible.builtin.file:
+        path: '{{ creativity_install }}/static/downloads'
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
     - name: Copy account API and browser fixes with backups
       ansible.builtin.copy:
         src: '{{ playbook_dir }}/../{{ item }}'
@@ -23,7 +61,7 @@
         group: root
         mode: '0644'
         backup: true
-      loop: [server.py, database.py, static/index.html, static/app.js, static/style.css]
+      loop: [server.py, database.py, static/index.html, static/app.js, static/style.css, static/mobile.html, static/mobile.js, static/downloads/africa-creativity.apk, static/downloads/africa-creativity.apk.sha256, deploy/seed_public_releases.py]
       notify: Restart application
     - name: Validate updated Python source without altering data
       ansible.builtin.command:
@@ -39,6 +77,30 @@
       until: app_health.status | default(0) == 200
       retries: 10
       delay: 2
+      when: not ansible_check_mode
+    - name: Populate playable original public samples without changing private releases
+      become_user: africancreativity
+      vars:
+        ansible_remote_tmp: /var/tmp/africancreativity-ansible
+      ansible.builtin.command:
+        argv: [python3, '{{ creativity_install }}/deploy/seed_public_releases.py']
+      environment:
+        CREATIVITY_DATA: '{{ creativity_install }}/data'
+      register: sample_seed
+      changed_when: false
+      when: not ansible_check_mode
+    - name: Verify Explore contains public releases
+      ansible.builtin.uri:
+        url: 'http://127.0.0.1:{{ creativity_port }}/api/explore'
+        status_code: 200
+        return_content: true
+      register: explore_result
+      failed_when: explore_result.status != 200 or (explore_result.json.projects | default([]) | length) == 0
+      when: not ansible_check_mode
+    - name: Verify Android download is installed
+      ansible.builtin.uri:
+        url: 'http://127.0.0.1:{{ creativity_port }}/downloads/africa-creativity.apk'
+        status_code: 200
       when: not ansible_check_mode
     - name: Verify signup form is served
       ansible.builtin.uri:

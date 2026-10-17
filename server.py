@@ -113,17 +113,21 @@ class Handler(BaseHTTPRequestHandler):
     def route(self,method):
         url=urlparse(self.path);path=url.path;qs=parse_qs(url.query)
         if path=='/health' and method=='GET':return self.send(200,{'status':'ok'})
+        if path in ('/downloads/africa-creativity.apk','/downloads/africa-creativity.apk.sha256') and method=='GET':
+            file=db.ROOT/'static'/path.lstrip('/')
+            if not file.is_file():raise Problem('Android download is not installed yet',404)
+            return self.binary(file,'application/vnd.android.package-archive' if path.endswith('.apk') else 'text/plain',download=True)
         if not path.startswith('/api/'):
-            files={'/':'index.html','/explore':'index.html','/logo.jpg':'logo.jpg','/app.js':'app.js','/style.css':'style.css','/studio.js':'studio.js','/help':'help.html','/terms':'terms.html','/privacy':'privacy.html'}
+            files={'/':'index.html','/explore':'index.html','/mobile':'mobile.html','/mobile.js':'mobile.js','/logo.jpg':'logo.jpg','/app.js':'app.js','/style.css':'style.css','/studio.js':'studio.js','/help':'help.html','/terms':'terms.html','/privacy':'privacy.html'}
             if method!='GET' or path not in files:raise Problem('Not found',404)
             f=db.ROOT/'static'/files[path];return self.binary(f,mimetypes.guess_type(f)[0] or 'text/plain')
         with self.request_database() as c:
             if path=='/api/login' and method=='POST':
                 if self.headers.get('X-Requested-With')!='AfricanCreativity':raise Problem('Invalid sign-in request',403)
-                d=self.input();name=db.text(d,'username',80);password=db.password_input(d)
+                d=self.input();name=db.text(d,'username',254);password=db.password_input(d)
                 key='login:'+self.client_ip()+':'+db.digest(name.casefold())
                 self.throttle(c,key,15,300)
-                rows=c.execute("SELECT u.* FROM users u LEFT JOIN tenants t ON t.id=u.tenant_id WHERE username=? COLLATE NOCASE AND u.active=1 AND (u.role='super_admin' OR t.status='active') ORDER BY username=? DESC",(name,name)).fetchall()
+                rows=c.execute("SELECT u.* FROM users u LEFT JOIN tenants t ON t.id=u.tenant_id LEFT JOIN account_profiles p ON p.user_id=u.id WHERE (u.username=? COLLATE NOCASE OR p.email=? COLLATE NOCASE) AND u.active=1 AND (u.role='super_admin' OR t.status='active') ORDER BY u.username=? DESC",(name,name,name)).fetchall()
                 u=next((row for row in rows if row['username']==name),rows[0] if len(rows)==1 else None)
                 if not u or not db.check_password(password,u['password']):raise Problem('Invalid sign-in details',401)
                 c.execute('DELETE FROM login_limits WHERE ip=?',(key,))
@@ -131,7 +135,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(200,{'csrf':csrf},cookie)
             if path=='/api/register' and method=='POST':
                 if self.headers.get('X-Requested-With')!='AfricanCreativity':raise Problem('Invalid registration request',403)
-                d=self.input();username=db.text(d,'username',80);name=db.text(d,'name',120)
+                d=self.input();email=db.email_address(d.get('email'));name=db.text(d,'name',120)
+                username=db.text(d,'username',80,required=False) or re.sub('[^a-z0-9_.-]','',email.split('@')[0])[:30]+'-'+secrets.token_hex(3)
+                phone=db.text(d,'phone',40,required=False);country=db.text(d,'country',80,required=False)
+                workspace_name=db.text(d,'workspace_name',120,required=False) or name+"’s workspace"
                 if not re.fullmatch('[a-zA-Z0-9_.@-]{3,80}',username):raise Problem('Username must be 3–80 letters, digits or _.@-')
                 password=db.password_input(d)
                 if d.get('password_confirmation')!=password:raise Problem('Passwords do not match')
@@ -139,9 +146,11 @@ class Handler(BaseHTTPRequestHandler):
                 hashed=db.hash_password(password)
                 c.execute('BEGIN IMMEDIATE')
                 if c.execute('SELECT 1 FROM users WHERE username=? COLLATE NOCASE',(username,)).fetchone():raise Problem('Username is unavailable. Choose another or sign in.',409)
+                if c.execute('SELECT 1 FROM account_profiles WHERE email=? COLLATE NOCASE OR email=? COLLATE NOCASE',(email,username)).fetchone() or c.execute('SELECT 1 FROM users WHERE username=? COLLATE NOCASE',(email,)).fetchone():raise Problem('This email or username is already registered. Sign in instead.',409)
                 slug='personal-'+secrets.token_hex(12)
-                tid=c.execute("INSERT INTO tenants(name,slug,plan,credits,storage_mb,created) VALUES(?,?,'starter',0,100,?)",(name+"’s workspace",slug,db.now())).lastrowid
+                tid=c.execute("INSERT INTO tenants(name,slug,plan,credits,storage_mb,created) VALUES(?,?,'starter',0,100,?)",(workspace_name,slug,db.now())).lastrowid
                 uid=c.execute("INSERT INTO users(tenant_id,username,name,password,role,created) VALUES(?,?,?,?,'tenant_admin',?)",(tid,username,name,hashed,db.now())).lastrowid
+                c.execute('INSERT INTO account_profiles(user_id,email,phone,country,created,updated) VALUES(?,?,?,?,?,?)',(uid,email,phone,country,db.now(),db.now()))
                 c.execute('INSERT INTO workspaces(tenant_id,owner_id,name,created) VALUES(?,?,?,?)',(tid,uid,'My workspace',db.now()))
                 u=c.execute('SELECT * FROM users WHERE id=?',(uid,)).fetchone()
                 db.audit(c,u,'register','self-service workspace')
@@ -156,8 +165,8 @@ class Handler(BaseHTTPRequestHandler):
                 c.execute('INSERT INTO users(tenant_id,username,name,password,role,created) VALUES(?,?,?,?,?,?)',(inv['tenant_id'],username,db.text(d,'name',120),password,inv['role'],db.now()));c.execute('UPDATE invitations SET used=1 WHERE id=?',(inv['id'],))
                 return self.send(201,{'message':'Account created. Sign in to continue.'})
             if path=='/api/explore' and method=='GET':
-                projects=c.execute("SELECT p.id,p.title,p.kind,p.updated,u.name as artist,t.name as label FROM projects p JOIN users u ON u.id=p.owner_id JOIN tenants t ON t.id=p.tenant_id WHERE visibility='public' AND trashed=0 AND t.status='active' AND u.active=1 AND p.kind IN ('song','album','playlist','video') ORDER BY p.updated DESC LIMIT 100").fetchall()
-                return self.send(200,{'projects':[dict(x) for x in projects]})
+                projects=c.execute("SELECT p.id,p.title,p.kind,p.updated,p.body,u.name as artist,t.name as label FROM projects p JOIN users u ON u.id=p.owner_id JOIN tenants t ON t.id=p.tenant_id WHERE visibility='public' AND trashed=0 AND t.status='active' AND u.active=1 AND p.kind IN ('song','album','playlist','video') ORDER BY p.updated DESC LIMIT 100").fetchall()
+                return self.send(200,{'projects':[{k:x[k] for k in ('id','title','kind','updated','artist','label')} | {'sample':bool(db.body(x).get('sample_release'))} for x in projects]})
             if path.startswith('/api/public/') and method=='GET':
                 key=path.split('/')[-1];p=c.execute("SELECT p.* FROM projects p JOIN tenants t ON t.id=p.tenant_id JOIN users u ON u.id=p.owner_id WHERE (cast(p.id as TEXT)=? AND p.visibility='public' OR p.share_token=? AND p.visibility='unlisted') AND p.trashed=0 AND t.status='active' AND u.active=1",(key,key)).fetchone()
                 if not p:raise Problem('Published item not found',404)
@@ -316,6 +325,16 @@ class Handler(BaseHTTPRequestHandler):
                 if not j:raise Problem('Job not found',404)
                 if j['state']!='queued':raise Problem('Only queued jobs can be canceled',409)
                 db.refund(c,j,'Canceled by creator');db.audit(c,u,'cancel.job',jid);return self.send(200,{'ok':True})
+            if path=='/api/profile' and method in ('GET','PATCH'):
+                profile=c.execute('SELECT email,phone,country FROM account_profiles WHERE user_id=?',(u['id'],)).fetchone()
+                if method=='GET':return self.send(200,{'name':u['name'],'username':u['username'],**(dict(profile) if profile else {'email':'','phone':'','country':''})})
+                d=self.input();name=db.text(d,'name',120);email=db.email_address(d.get('email'));phone=db.text(d,'phone',40,False);country=db.text(d,'country',80,False)
+                c.execute('BEGIN IMMEDIATE')
+                if c.execute('SELECT 1 FROM account_profiles WHERE email=? COLLATE NOCASE AND user_id!=?',(email,u['id'])).fetchone() or c.execute('SELECT 1 FROM users WHERE username=? COLLATE NOCASE AND id!=?',(email,u['id'])).fetchone():raise Problem('Email is already registered',409)
+                c.execute('UPDATE users SET name=? WHERE id=?',(name,u['id']))
+                c.execute("INSERT INTO account_profiles(user_id,email,phone,country,created,updated) VALUES(?,?,?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET email=excluded.email,phone=excluded.phone,country=excluded.country,updated=excluded.updated",(u['id'],email,phone,country,db.now(),db.now()))
+                db.audit(c,u,'update.profile','self')
+                return self.send(200,{'ok':True})
             if path=='/api/account' and method=='GET':
                 t=c.execute('SELECT * FROM tenants WHERE id=?',(u['tenant_id'],)).fetchone();used=c.execute('SELECT coalesce(sum(size),0) FROM assets WHERE tenant_id=?',(u['tenant_id'],)).fetchone()[0]
                 ledger=c.execute('SELECT delta,reason,job_id,created FROM ledger WHERE tenant_id=? ORDER BY id DESC LIMIT 100',(u['tenant_id'],)).fetchall()
