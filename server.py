@@ -208,6 +208,10 @@ class Handler(BaseHTTPRequestHandler):
                 if uid==u['id']:raise Problem('You cannot disable or change your own role here')
                 role=d.get('role',target['role']);active=d.get('active',target['active'])
                 if role not in ('tenant_admin','creator') or active not in (0,1):raise Problem('Invalid role or active status')
+                c.execute('BEGIN IMMEDIATE')
+                target=c.execute('SELECT * FROM users WHERE id=? AND tenant_id=?',(uid,u['tenant_id'])).fetchone()
+                if target['active'] and target['role']=='tenant_admin' and (not active or role!='tenant_admin'):
+                    if c.execute("SELECT count(*) FROM users WHERE tenant_id=? AND role='tenant_admin' AND active=1",(u['tenant_id'],)).fetchone()[0]<=1:raise Problem('Keep at least one active tenant administrator',409)
                 c.execute('UPDATE users SET active=?,role=? WHERE id=?',(active,role,uid));c.execute('DELETE FROM sessions WHERE user_id=?',(uid,));db.audit(c,u,'update.user',uid);return self.send(200,{'ok':True})
             if path=='/api/workspaces':
                 if method=='GET':
@@ -352,6 +356,57 @@ class Handler(BaseHTTPRequestHandler):
         if b.get('audio_id'):db.asset(c,u,b['audio_id'])
     def admin(self,c,u,path,method):
         db.require_role(u,'super_admin')
+        if path=='/api/admin/overview' and method=='GET':
+            summary={table:c.execute('SELECT count(*) FROM '+table).fetchone()[0] for table in ('tenants','users','projects','workspaces')}
+            summary['storage_bytes']=c.execute('SELECT coalesce(sum(size),0) FROM assets').fetchone()[0]
+            summary['active_tenants']=c.execute("SELECT count(*) FROM tenants WHERE status='active'").fetchone()[0]
+            summary['credits']=c.execute('SELECT coalesce(sum(credits),0) FROM tenants').fetchone()[0]
+            summary['queue']=[dict(x) for x in c.execute('SELECT state,count(*) AS count FROM jobs GROUP BY state')]
+            return self.send(200,summary)
+        if path=='/api/admin/users' and method=='GET':
+            return self.send(200,{'users':[dict(x) for x in c.execute('SELECT u.id,u.tenant_id,u.username,u.name,u.role,u.active,u.created,t.name AS tenant_name FROM users u LEFT JOIN tenants t ON t.id=u.tenant_id ORDER BY u.id DESC LIMIT 1000')]})
+        if re.fullmatch(r'/api/admin/users/\d+',path) and method=='PATCH':
+            d=self.input();uid=int(path.split('/')[-1]);c.execute('BEGIN IMMEDIATE')
+            target=c.execute('SELECT * FROM users WHERE id=?',(uid,)).fetchone()
+            if not target:raise Problem('User not found',404)
+            if target['role']=='super_admin' or target['tenant_id'] is None:raise Problem('Platform identities cannot be modified here',403)
+            role=d.get('role',target['role']);active=d.get('active',target['active'])
+            if role not in ('tenant_admin','creator') or type(active) is not int or active not in (0,1):raise Problem('Invalid role or active status')
+            if target['active'] and target['role']=='tenant_admin' and (not active or role!='tenant_admin'):
+                count=c.execute("SELECT count(*) FROM users WHERE tenant_id=? AND role='tenant_admin' AND active=1",(target['tenant_id'],)).fetchone()[0]
+                if count<=1:raise Problem('Keep at least one active tenant administrator',409)
+            c.execute('UPDATE users SET role=?,active=? WHERE id=?',(role,active,uid))
+            c.execute('DELETE FROM sessions WHERE user_id=?',(uid,))
+            db.audit(c,u,'platform.update.user',uid);return self.send(200,{'ok':True})
+        if path=='/api/admin/invitations' and method=='GET':
+            return self.send(200,{'invitations':[dict(x) for x in c.execute('SELECT i.id,i.tenant_id,i.role,i.expires,i.used,t.name AS tenant_name FROM invitations i JOIN tenants t ON t.id=i.tenant_id ORDER BY i.id DESC LIMIT 1000')]})
+        if re.fullmatch(r'/api/admin/tenants/\d+/invitations',path) and method=='POST':
+            tid=int(path.split('/')[-2]);d=self.input();role=d.get('role','tenant_admin')
+            if role not in ('tenant_admin','creator'):raise Problem('Invalid role')
+            t=c.execute('SELECT status FROM tenants WHERE id=?',(tid,)).fetchone()
+            if not t:raise Problem('Tenant not found',404)
+            if t['status']!='active':raise Problem('Reactivate the tenant before inviting members',409)
+            token=secrets.token_urlsafe(32)
+            c.execute('INSERT INTO invitations(tenant_id,token,role,expires) VALUES(?,?,?,?)',(tid,db.digest(token),role,db.now()+7*86400))
+            db.audit(c,u,'platform.invite',tid);return self.send(201,{'token':token,'expires_in_days':7})
+        if re.fullmatch(r'/api/admin/invitations/\d+',path) and method=='DELETE':
+            iid=int(path.split('/')[-1])
+            if not c.execute('SELECT id FROM invitations WHERE id=?',(iid,)).fetchone():raise Problem('Invitation not found',404)
+            c.execute('UPDATE invitations SET used=1 WHERE id=?',(iid,));db.audit(c,u,'platform.revoke.invitation',iid)
+            return self.send(200,{'ok':True})
+        if path=='/api/admin/jobs' and method=='GET':
+            return self.send(200,{'jobs':[dict(x) for x in c.execute('SELECT j.id,j.tenant_id,j.kind,j.state,j.cost,j.created,j.updated,t.name AS tenant_name FROM jobs j JOIN tenants t ON t.id=j.tenant_id ORDER BY j.id DESC LIMIT 500')]})
+        if re.fullmatch(r'/api/admin/jobs/\d+/cancel',path) and method=='POST':
+            jid=int(path.split('/')[-2]);c.execute('BEGIN IMMEDIATE')
+            j=c.execute('SELECT * FROM jobs WHERE id=?',(jid,)).fetchone()
+            if not j:raise Problem('Job not found',404)
+            if j['state']!='queued':raise Problem('Only queued jobs can be cancelled',409)
+            db.refund(c,j,'Cancelled by platform administrator');db.audit(c,u,'platform.cancel.job',jid)
+            return self.send(200,{'ok':True})
+        if path=='/api/admin/ledger' and method=='GET':
+            return self.send(200,{'ledger':[dict(x) for x in c.execute('SELECT l.*,t.name AS tenant_name FROM ledger l LEFT JOIN tenants t ON t.id=l.tenant_id ORDER BY l.id DESC LIMIT 1000')]})
+        if path=='/api/admin/audit' and method=='GET':
+            return self.send(200,{'events':[dict(x) for x in c.execute('SELECT a.*,u.name AS actor_name,t.name AS tenant_name FROM audit a LEFT JOIN users u ON u.id=a.actor_id LEFT JOIN tenants t ON t.id=a.tenant_id ORDER BY a.id DESC LIMIT 1000')]})
         if path=='/api/admin/tenants':
             if method=='GET':return self.send(200,{'tenants':[dict(t) for t in c.execute('SELECT t.*,(SELECT count(*) FROM users WHERE tenant_id=t.id) as users,(SELECT coalesce(sum(size),0) FROM assets WHERE tenant_id=t.id) as storage_bytes FROM tenants t ORDER BY id')]})
             if method=='POST':

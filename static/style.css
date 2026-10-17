@@ -5,3 +5,6 @@
 .terms-check{display:block;line-height:1.6}.terms-check input{display:inline-block;width:auto;margin-right:8px}.auth-card details>summary{cursor:pointer;padding:12px 0;font-weight:600}.auth-card form button:disabled{opacity:.65;cursor:wait}
 .auth-tabs{display:flex;gap:8px;margin:20px 0}.auth-tabs button{width:auto;flex:1}.auth-tabs button[aria-pressed=true]{background:var(--accent);color:#17200c}.auth-card #register-panel label{margin:12px 0}.auth-card #register-panel h2{font-size:20px}
 .mobile-download{margin-top:24px;padding:clamp(24px,5vw,48px)}.mobile-download li{line-height:1.8;margin:12px 0}.apk-download{display:inline-block;padding:16px 24px;background:var(--accent);color:#17200c;border-radius:10px;font-weight:700;margin:16px 0}.apk-download[aria-disabled=true]{background:#888;color:#181622}.mobile-app-link{margin-top:18px;color:var(--accent)}
+
+/* Keep the full administration menu reachable on short screens. */
+aside{overflow-y:auto}#navigation{flex-shrink:0}

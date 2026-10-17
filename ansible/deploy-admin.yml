@@ -1,0 +1,23 @@
+---
+- name: Install backed-up platform administration update
+  ansible.builtin.import_playbook: deploy-auth-fixes.yml
+
+- name: Verify administration API authorization
+  hosts: all
+  become: true
+  gather_facts: false
+  vars:
+    creativity_port: 8096
+  tasks:
+    - name: Verify anonymous callers cannot read platform records
+      ansible.builtin.uri:
+        url: 'http://127.0.0.1:{{ creativity_port }}/api/admin/{{ item }}'
+        status_code: 401
+      loop: [overview, users, invitations, jobs, ledger, audit]
+    - name: Verify deployed administration navigation
+      ansible.builtin.uri:
+        url: 'http://127.0.0.1:{{ creativity_port }}/app.js'
+        return_content: true
+        status_code: 200
+      register: admin_browser
+      failed_when: "'Platform dashboard' not in admin_browser.content or 'Members & roles' not in admin_browser.content"

@@ -41,6 +41,53 @@ class PlatformTest(unittest.TestCase):
         s,d=self.a.call('upload','POST',dict(project_id=pid,name='test.wav',data=base64.b64encode(buf.getvalue()).decode(),rights_confirmed=True));self.assertEqual(s,201,d);return d['id']
     def patch(self,pid,**changes):
         p=self.a.call('projects/'+str(pid))[1]['project'];return self.a.call('projects/'+str(pid),'PATCH',dict(version=p['version'],**changes))
+    def test_platform_management_metadata_and_permissions(self):
+        for endpoint,key in [('overview','tenants'),('users','users'),('invitations','invitations'),('jobs','jobs'),('ledger','ledger'),('audit','events')]:
+            status,d=self.admin.call('admin/'+endpoint);self.assertEqual(status,200,d);self.assertIn(key,d)
+            self.assertEqual(self.a.call('admin/'+endpoint)[0],403)
+            self.assertEqual(Client(self.port).call('admin/'+endpoint)[0],401)
+        users=self.admin.call('admin/users')[1]['users']
+        self.assertFalse(any('password' in x or 'email' in x for x in users))
+        self.assertFalse(any('payload' in x or 'result' in x for x in self.admin.call('admin/jobs')[1]['jobs']))
+        self.assertFalse(any('token' in x for x in self.admin.call('admin/invitations')[1]['invitations']))
+
+    def test_platform_member_controls_protect_identity_and_last_admin(self):
+        users=self.admin.call('admin/users')[1]['users'];alice=next(x for x in users if x['username']=='alice');platform=next(x for x in users if x['username']=='platform');editor=next(x for x in users if x['username']=='editor')
+        self.assertEqual(self.admin.call('admin/users/'+str(platform['id']),'PATCH',{'active':0})[0],403)
+        self.assertEqual(self.admin.call('admin/users/'+str(alice['id']),'PATCH',{'role':'creator'})[0],409)
+        self.assertEqual(self.a.call('admin/users/'+str(editor['id']),'PATCH',{'role':'tenant_admin'})[0],403)
+        bad=Client(self.port).login('platform');bad.csrf='bad'
+        self.assertEqual(bad.call('admin/users/'+str(editor['id']),'PATCH',{'active':0})[0],403)
+        self.assertEqual(self.admin.call('admin/users/'+str(editor['id']),'PATCH',{'active':0})[0],200)
+        self.assertEqual(Client(self.port).login('alice').call('me')[0],200)
+        disabled=Client(self.port)
+        self.assertEqual(disabled.call('login','POST',dict(username='editor',password='test-password-123'))[0],401)
+        self.assertEqual(self.admin.call('admin/users/'+str(editor['id']),'PATCH',{'active':1})[0],200)
+        self.assertEqual(Client(self.port).login('editor').call('me')[0],200)
+
+    def test_platform_can_reissue_and_revoke_invitation(self):
+        status,d=self.admin.call('admin/tenants/2/invitations','POST',{'role':'tenant_admin'});self.assertEqual(status,201,d)
+        records=self.admin.call('admin/invitations')[1]['invitations'];iid=max(x['id'] for x in records if x['tenant_id']==2)
+        self.assertEqual(self.admin.call('admin/invitations/'+str(iid),'DELETE')[0],200)
+        with db.connect() as c:
+            invite=c.execute('SELECT * FROM invitations WHERE id=?',(iid,)).fetchone();self.assertEqual(invite['used'],1);self.assertEqual(invite['token'],db.digest(d['token']))
+        self.assertEqual(self.admin.call('admin/tenants/999999/invitations','POST',{})[0],404)
+
+    def test_platform_cancel_refunds_queued_job_exactly_once(self):
+        pid=self.project()
+        with db.connect() as c:
+            before=c.execute('SELECT credits FROM tenants WHERE id=1').fetchone()[0]
+            c.execute('UPDATE tenants SET credits=credits-3 WHERE id=1')
+            uid=c.execute("SELECT id FROM users WHERE username='alice'").fetchone()[0]
+            jid=c.execute("INSERT INTO jobs(tenant_id,user_id,project_id,kind,payload,cost,created,updated) VALUES(1,?,?,'speech','{}',3,?,?)",(uid,pid,db.now(),db.now())).lastrowid
+        self.assertEqual(self.a.call('admin/jobs/'+str(jid)+'/cancel','POST',{})[0],403)
+        self.assertEqual(self.admin.call('admin/jobs/'+str(jid)+'/cancel','POST',{})[0],200)
+        self.assertEqual(self.admin.call('admin/jobs/'+str(jid)+'/cancel','POST',{})[0],409)
+        with db.connect() as c:
+            self.assertEqual(c.execute('SELECT credits FROM tenants WHERE id=1').fetchone()[0],before)
+            self.assertEqual(c.execute("SELECT count(*) FROM ledger WHERE job_id=? AND reason='refund'",(jid,)).fetchone()[0],1)
+        events=self.admin.call('admin/audit')[1]['events'];self.assertTrue(any(x['action']=='platform.cancel.job' and x['resource']==str(jid) for x in events))
+
     def test_tenant_isolation_and_platform_no_chart_access(self):
         p=self.project();self.assertEqual(self.b.call('projects/'+str(p))[0],404);self.assertEqual(self.admin.call('projects')[0],403)
         self.assertNotIn(p,[x['id'] for x in self.b.call('projects')[1]['projects']])

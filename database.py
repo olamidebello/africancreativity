@@ -35,6 +35,13 @@ def init():
         CREATE TABLE IF NOT EXISTS likes(user_id INTEGER REFERENCES users(id),project_id INTEGER REFERENCES projects(id),PRIMARY KEY(user_id,project_id));
         CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY,tenant_id INTEGER,actor_id INTEGER,action TEXT NOT NULL,resource TEXT NOT NULL,created REAL NOT NULL);
         CREATE TABLE IF NOT EXISTS login_limits(ip TEXT PRIMARY KEY,attempts INTEGER NOT NULL,started REAL NOT NULL);
+        CREATE INDEX IF NOT EXISTS idx_users_tenant_role ON users(tenant_id,role,active);
+        CREATE INDEX IF NOT EXISTS idx_assets_tenant_size ON assets(tenant_id,size);
+        CREATE INDEX IF NOT EXISTS idx_jobs_tenant_state ON jobs(tenant_id,state);
+        CREATE INDEX IF NOT EXISTS idx_invitations_tenant ON invitations(tenant_id,id);
+        CREATE INDEX IF NOT EXISTS idx_ledger_tenant ON ledger(tenant_id,id);
+        CREATE INDEX IF NOT EXISTS idx_audit_tenant ON audit(tenant_id,id);
+
         ''')
         # Interrupted jobs are refunded rather than replaying possibly charged provider requests.
         for j in c.execute("SELECT * FROM jobs WHERE state='running'").fetchall():

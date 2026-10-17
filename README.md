@@ -215,3 +215,43 @@ Back it up privately. Every update must reuse this signing key and increment
 manifest versionCode. The initial key backup is retained separately from the
 public source/package. Never publish the signing archive or password.
 The account deployment playbook also installs and checks the APK.
+
+## Super-admin control center and tenant access
+
+Sign in with the existing platform administrator account. The platform dashboard
+summarizes tenants, members, workspaces, projects, storage, credits and queue states.
+Its sidebar contains Dashboard, Tenants & quotas, Members & roles, Invitations,
+Job queue, Usage & credits, Audit log, Engine status and Security.
+
+- Tenants: search/filter, provision an organization, generate its administrator invitation,
+  set plans and storage, adjust credits, suspend/reactivate, open members or ledger.
+- Members: filter by organization, promote/demote tenant roles, disable/reactivate.
+  Changes revoke sessions. Platform identities and the last active tenant admin are protected.
+- Invitations: issue seven-day administrator tokens, review pending/expired/used records,
+  revoke pending tokens. Only digests are stored; tokens are shown once.
+- Queue: inspect processing metadata and cancel queued work with exactly-once refunds.
+  Running jobs cannot be cancelled using this control.
+- Ledger and audit: search/filter recent persisted credit movements and activity.
+- Engines: inspect server-configured availability. Security: change the signed-in
+  administrator's own password, retaining the current session and revoking others.
+
+Tenant administrators retain their own Account & team, invitations, member role/access
+controls, ledger and activity. Workspace owners can share projects with editors/viewers.
+Tenant identifiers come from authenticated sessions; platform roles cannot be granted
+through registration or team controls. The platform control center does not provide
+private project content or impersonation. Operational lists show at most 1,000 recent
+members/invitations/ledger/audit records or 500 jobs and disclose these limits in the GUI.
+Plans/credits are internal allocations; payments, MFA, email delivery and provider
+credential setup are not added by this update.
+
+Deploy an existing installation (online SQLite snapshot and application file backups
+are taken by the imported update playbook; startup adds the indexes without deleting data):
+
+```bash
+git -C /root/africancreativity pull --ff-only origin main && ansible-playbook -i localhost, -c local /root/africancreativity/ansible/deploy-admin.yml
+```
+
+Verify from the GUI using the existing platform login. The playbook verifies health,
+the browser asset, and anonymous denial for each new administration API. Restore
+application backup files and the protected SQLite snapshot for a rollback while
+the app and worker are stopped; do not overwrite an active database.
