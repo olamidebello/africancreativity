@@ -1,9 +1,10 @@
 """Durable queue. A single worker claims jobs atomically and validates authorization at execution."""
 import json,threading,time,shutil,subprocess,tempfile,sys
 from pathlib import Path
+import open_engines
 import database as db,providers,media,addons,engines,youtube_integration as yt
 from database import Problem
-COSTS={'lyrics':1,'prompt':1,'storyboard':2,'speech':3,'music':10,'synth':0,'compose':0,'youtube_upload':0,'edit':0,'mix':0,'video':2,'stems':5,'export':0,'images':5,'ai_motion_video':20,'master':0,'arrange':0,'analyze':0}
+COSTS={'open_engine':0,'lyrics':1,'prompt':1,'storyboard':2,'speech':3,'music':10,'synth':0,'compose':0,'youtube_upload':0,'edit':0,'mix':0,'video':2,'stems':5,'export':0,'images':5,'ai_motion_video':20,'master':0,'arrange':0,'analyze':0}
 
 def validate_sources(c,u,kind,payload):
     ids=[]
@@ -34,6 +35,9 @@ def queue(c,u,d):
     if kind=='compose':
         payload=engines.validate(payload)
         if payload['engine'] not in engines.enabled():raise Problem('Selected local engine is not enabled',503)
+    if kind=='open_engine':
+        payload=open_engines.validate(payload)
+        if not any(m['id']==payload['engine'] and m['ready'] for m in caps['open_models']):raise Problem('Selected self-hosted engine is unavailable',503)
     if kind=='music':
         if not payload.get('instrumental',True):raise Problem('This engine supports instrumental audio only. Singing is not configured.',422)
         model_id=payload.get('engine','musicgen-small')
@@ -67,6 +71,19 @@ def execute(j,u):
         if expected and a['kind']!=expected:raise Problem('Wrong media type')
         return media.diskpath(a)
     try:
+        if kind=='open_engine':
+            spec=open_engines.CATALOG[p['engine']]
+            out=media.newfile(spec['ext'])
+            src=None
+            if p['engine']=='whisper':
+                with db.connect() as c:a=db.asset(c,u,p['asset_id'])
+                if a['kind'] not in ('audio','video'):raise Problem('Choose an audio or video asset')
+                src=media.diskpath(a)
+            open_engines.render(p,out,src)
+            if p['engine']=='whisper':
+                result=json.loads(out.read_text());out.unlink(missing_ok=True)
+                return {'engine':'whisper',**result},[]
+            return {'engine':p['engine'],'method':'self-hosted AI'},[(out,spec['name'],spec['kind'],spec['mime'])]
         if kind=='youtube_upload':return yt.upload(j,u,p),[]
         if kind in ('lyrics','prompt','storyboard'):return {'text':providers.assist(kind,p['prompt'])},[]
         if kind=='analyze':return {'text':addons.analyze(source(p.get('asset_id'),'audio'))},[]

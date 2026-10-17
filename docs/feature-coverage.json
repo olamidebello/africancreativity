@@ -1692,5 +1692,47 @@
     "feature": "Trending-track videos",
     "status": "Partial",
     "detail": "Use only tracks you have permission to use; no trending-track importer or music license."
+  },
+  {
+    "source": "Self-hosted AI update",
+    "id": 1,
+    "feature": "ACE-Step songs",
+    "status": "Provider-dependent",
+    "detail": "Queued prompt/original-lyrics WAV generation; target installation and real output verification required."
+  },
+  {
+    "source": "Self-hosted AI update",
+    "id": 2,
+    "feature": "Wan video",
+    "status": "Provider-dependent",
+    "detail": "Queued 33-frame text-to-video clips; GPU installation required."
+  },
+  {
+    "source": "Self-hosted AI update",
+    "id": 3,
+    "feature": "FLUX artwork",
+    "status": "Provider-dependent",
+    "detail": "Queued 512-pixel image generation; GPU installation required."
+  },
+  {
+    "source": "Self-hosted AI update",
+    "id": 4,
+    "feature": "Kokoro narration",
+    "status": "Provider-dependent",
+    "detail": "Queued English narration; model download/verification required."
+  },
+  {
+    "source": "Self-hosted AI update",
+    "id": 5,
+    "feature": "Whisper transcription and SRT",
+    "status": "Provider-dependent",
+    "detail": "Scoped source recording transcription; saved private transcript and SRT download after model verification."
+  },
+  {
+    "source": "Self-hosted AI update",
+    "id": 6,
+    "feature": "Bounded batch generation",
+    "status": "Implemented",
+    "detail": "UI submits 1–3 independent jobs with successive seeds and reports partial submissions."
   }
 ]

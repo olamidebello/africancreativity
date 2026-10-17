@@ -1,0 +1,9 @@
+---
+# Existing initialized installation; includes the database backup/update flows.
+# CPU hosts install Kokoro and Whisper; supported GPU hosts also build music,
+# artwork and video engines. See docs/SELF_HOSTED_AI.md for limits.
+- name: Build existing platform and local creation components
+  ansible.builtin.import_playbook: build-all.yml
+
+- name: Install and verify self-hosted AI and subtitle features
+  ansible.builtin.import_playbook: install-open-engines.yml

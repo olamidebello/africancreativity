@@ -1,0 +1,5 @@
+# Upstream source is pinned; its declared dependencies are resolved by pip.
+ace_step @ git+https://github.com/ace-step/ACE-Step.git@1bee4c9f5b43e30995f8d4d33b3919197ce1bd68
+diffusers==0.33.1
+peft==0.15.2
+soundfile==0.13.1

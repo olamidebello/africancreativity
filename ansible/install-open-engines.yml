@@ -1,0 +1,162 @@
+---
+# Existing installation; run from a pulled repository checkout.
+# ansible-playbook -i localhost, -c local ansible/install-open-engines.yml
+# Defaults request all four; unsupported GPU engines are reported and skipped.
+# Set open_engines_require_all=true to fail before installation if any cannot run.
+- name: Inspect hardware and choose supported engines before changing the app
+  hosts: all
+  become: true
+  gather_facts: true
+  vars:
+    open_engines_requested: [ace-step, wan, flux-schnell, kokoro, whisper]
+    open_engines_require_all: false
+    creativity_install: /opt/africancreativity
+  tasks:
+    - name: Validate selection and Python platform
+      ansible.builtin.assert:
+        that:
+          - open_engines_requested is sequence and open_engines_requested is not string
+          - open_engines_requested | length > 0
+          - open_engines_requested | difference(['ace-step','wan','flux-schnell','kokoro','whisper']) | length == 0
+          - ansible_facts.python.version.major == 3
+          - ansible_facts.python.version.minor | int >= 10
+          - ansible_facts.python.version.minor | int <= 12
+          - creativity_install is match('^/opt/[A-Za-z0-9_-]+$')
+        fail_msg: This installation profile supports Debian/Ubuntu Python 3.10–3.12.
+    - name: Inspect NVIDIA GPU memory without installing drivers
+      ansible.builtin.command:
+        argv: [nvidia-smi, --query-gpu=memory.total, --format=csv,noheader,nounits]
+      register: open_gpu
+      failed_when: false
+      changed_when: false
+      check_mode: false
+    - name: Choose engines that satisfy this conservative capacity profile
+      ansible.builtin.set_fact:
+        open_engines_selected: "{{ (open_engines_requested | intersect(['kokoro','whisper']) if ansible_facts.memtotal_mb | int >= 3500 else []) + (open_engines_requested | intersect(['ace-step','wan']) if open_gpu.rc == 0 and (open_gpu.stdout_lines | first | default('0') | int) >= 12000 and ansible_facts.memtotal_mb | int >= 31000 else []) + (['flux-schnell'] if 'flux-schnell' in open_engines_requested and open_gpu.rc == 0 and (open_gpu.stdout_lines | first | default('0') | int) >= 16000 and ansible_facts.memtotal_mb | int >= 47000 else []) }}"
+    - name: Report requested and supported engines
+      ansible.builtin.debug:
+        msg:
+          requested: '{{ open_engines_requested }}'
+          selected: '{{ open_engines_selected }}'
+          skipped_for_capacity: '{{ open_engines_requested | difference(open_engines_selected) }}'
+    - name: Require selected capacity before deploying
+      ansible.builtin.assert:
+        that:
+          - open_engines_selected | length > 0
+          - not (open_engines_require_all | bool) or open_engines_requested | difference(open_engines_selected) | length == 0
+        fail_msg: Insufficient hardware. Kokoro requires 4 GB RAM; ACE-Step/Wan use this profile's 12 GB GPU and 32 GB RAM minimum; FLUX uses 16 GB GPU and 48 GB RAM. These are installer thresholds, not performance guarantees.
+    - name: Inspect free space on installation filesystem
+      ansible.builtin.command:
+        argv: [python3, -c, "import shutil; print(shutil.disk_usage('/opt').free)"]
+      register: open_free
+      changed_when: false
+      check_mode: false
+    - name: Require disk headroom for models and dependency environments
+      ansible.builtin.assert:
+        that: open_free.stdout | int > ((15 if open_engines_selected | difference(['kokoro','whisper']) | length == 0 else 100) * 1024 * 1024 * 1024)
+        fail_msg: Reserve 15 GiB free for Kokoro-only or 100 GiB for the GPU profile.
+
+- name: Deploy latest application with existing database backup flow
+  ansible.builtin.import_playbook: deploy-admin.yml
+
+- name: Install isolated model runtimes and activate only verified outputs
+  hosts: all
+  become: true
+  gather_facts: false
+  vars:
+    creativity_install: /opt/africancreativity
+    creativity_port: 8096
+    open_engines_root: /opt/africancreativity-open-engines
+    open_engine_requirements:
+      whisper: open-whisper.txt
+      ace-step: open-ace-step.txt
+      wan: open-diffusion.txt
+      flux-schnell: open-diffusion.txt
+      kokoro: open-kokoro.txt
+  tasks:
+    - name: Validate runtime destination
+      ansible.builtin.assert:
+        that: open_engines_root is match('^/opt/[A-Za-z0-9_-]+$')
+    - name: Install OS prerequisites
+      ansible.builtin.apt:
+        name: [python3-venv, python3-dev, build-essential, git, ffmpeg, libsndfile1, espeak-ng, libgomp1]
+        state: present
+        update_cache: true
+    - name: Install runner directory
+      ansible.builtin.file:
+        path: '{{ creativity_install }}/deploy'
+        state: directory
+        mode: '0755'
+    - name: Copy new model runner
+      ansible.builtin.copy:
+        src: '{{ playbook_dir }}/../deploy/run_open_engine.py'
+        dest: '{{ creativity_install }}/deploy/run_open_engine.py'
+        owner: root
+        group: root
+        mode: '0644'
+        backup: true
+    - name: Create protected shared model cache
+      ansible.builtin.file:
+        path: '{{ creativity_install }}/data/open-models'
+        state: directory
+        owner: africancreativity
+        group: africancreativity
+        mode: '0700'
+    - name: Start verified engine manifest
+      ansible.builtin.set_fact:
+        open_engine_manifest: {}
+    - name: Build and verify each selected engine sequentially
+      ansible.builtin.include_tasks: tasks/install-open-engine.yml
+      loop: '{{ open_engines_selected }}'
+      loop_control:
+        loop_var: open_engine
+    - name: Preserve previous engine manifest for activation recovery
+      ansible.builtin.slurp:
+        src: '{{ creativity_install }}/open-engines.json'
+      register: previous_open_manifest
+      failed_when: false
+    - name: Activate verified models
+      block:
+        - name: Publish verified engine manifest
+          ansible.builtin.copy:
+            dest: '{{ creativity_install }}/open-engines.json'
+            content: '{{ open_engine_manifest | to_nice_json }}'
+            owner: root
+            group: africancreativity
+            mode: '0640'
+        - name: Restart application
+          ansible.builtin.systemd:
+            name: africancreativity
+            state: restarted
+        - name: Verify application after activation
+          ansible.builtin.uri:
+            url: 'http://127.0.0.1:{{ creativity_port }}/health'
+            status_code: 200
+          register: open_health
+          until: open_health.status | default(0) == 200
+          retries: 15
+          delay: 2
+      rescue:
+        - name: Restore prior manifest
+          ansible.builtin.copy:
+            dest: '{{ creativity_install }}/open-engines.json'
+            content: '{{ previous_open_manifest.content | b64decode }}'
+            owner: root
+            group: africancreativity
+            mode: '0640'
+          when: previous_open_manifest.content is defined
+        - name: Remove first-time manifest
+          ansible.builtin.file:
+            path: '{{ creativity_install }}/open-engines.json'
+            state: absent
+          when: previous_open_manifest.content is not defined
+        - name: Restart previous configuration
+          ansible.builtin.systemd:
+            name: africancreativity
+            state: restarted
+        - name: Report failed activation
+          ansible.builtin.fail:
+            msg: Model activation failed; previous manifest restored.
+    - name: Report enabled engines
+      ansible.builtin.debug:
+        msg: "Verified engines: {{ open_engine_manifest.keys() | list }}. Sign in again, then open Self-hosted AI. No OpenAI or Suno key is required by these adapters."

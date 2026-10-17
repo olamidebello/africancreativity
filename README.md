@@ -2,6 +2,17 @@
 
 A working, tenant-isolated creative workspace for lyrics, recordings, short instrumental music, audio arrangement and music-video production. Python 3.11+ and SQLite provide persistent accounts, media records, projects, credits and a durable single-worker queue. Vanilla JavaScript provides the responsive GUI. This is an original platform, not an integration with or replica of Suno/Sondo's proprietary models.
 
+## Self-hosted AI additions
+
+Optional ACE-Step songs, Wan video, FLUX artwork, Kokoro narration and Whisper
+transcription/SRT subtitles are now connected through the existing tenant job
+queue and a new Self-hosted AI screen. Batch variations support 1–3 submissions.
+Install and verify supported engines with `ansible/build-recommended-features.yml`.
+See [installation, hardware requirements and precise feature limits](docs/SELF_HOSTED_AI.md).
+Earlier statements about absent sung vocals describe the original deployment;
+ACE-Step singing becomes available only after successful optional installation.
+Reference-audio covers, cloned voices and model training remain unimplemented.
+
 ## Run locally
 
 Install Python 3.11+ and FFmpeg (including ffprobe and libx264). On Debian:

@@ -1,5 +1,10 @@
 # Requested feature coverage
 
+**Self-hosted AI update:** optional generation, subtitle transcription and bounded batch
+creation are documented in [SELF_HOSTED_AI.md](SELF_HOSTED_AI.md). Its scoped
+capabilities update earlier statements about absent sung vocals after successful
+ACE-Step installation; this does not establish Suno feature parity.
+
 This file accounts for every numbered item in both supplied inventories. “Implemented” describes this original platform’s bounded equivalent, not Suno/Sondo feature parity. “Provider-dependent” means code is wired but external access, model installation/licensing and live validation are still needed. “Partial” identifies the specific difference. “Not implemented” means the feature is absent, not a hidden working integration.
 
 The new tenant provisioning and isolation are additional features, covered in README and tests. Advanced capabilities listed as absent need further implementation; they are not represented as production ready.
