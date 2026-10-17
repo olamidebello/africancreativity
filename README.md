@@ -126,3 +126,31 @@ the public page contains the Africa Creativity brand. It restores the backup on
 activation failure. It leaves DNS, certificates, account data and other domain
 files untouched. Configurations with nested root-location blocks require manual
 review; the playbook fails if it cannot find a matching proxy afterward.
+
+### Self-service accounts and authentication update
+
+Visitors can create a private workspace directly on the sign-in page, without
+an invitation. Registration atomically stores the tenant, hashed password,
+tenant-admin account, initial workspace and authenticated session in SQLite.
+New public workspaces have 100 MB storage and zero generation credits; platform
+administrators allocate credits. Public input cannot choose its role, tenant,
+quotas or initial credits. Existing invitation flows remain available and now
+sign the new member in automatically. Registration is limited to five attempts
+per client IP per hour. No email verification or password-reset email is provided.
+
+Passwords preserve their spaces. Sign-in accepts the original username or an
+unambiguous case-insensitive match. Failed login throttling is scoped to client
+IP and username so unrelated accounts do not share one localhost lockout. Only
+loopback requests from the local Nginx proxy may supply X-Real-IP; keep the
+backend bound to loopback and the proxy configured to overwrite this header.
+Existing accounts and passwords are retained; rerunning bootstrap does not reset
+the platform administrator password.
+
+Apply to the existing installation without another bootstrap password prompt:
+
+```bash
+git -C /root/africancreativity pull --ff-only origin main && ansible-playbook -i localhost, -c local /root/africancreativity/ansible/deploy-auth-fixes.yml
+```
+
+This update uses existing tables and does not replace or reset the database,
+AI configuration, isolated add-on runtime, media files or Nginx configuration.

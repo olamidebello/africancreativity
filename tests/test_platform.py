@@ -148,4 +148,48 @@ class PlatformTest(unittest.TestCase):
         finally:
             with db.connect() as c:c.execute('UPDATE tenants SET storage_mb=500 WHERE id=1')
 
+    def registration(self,username='new-artist',password=' signup-password-123 '):
+        return dict(username=username,name='New Artist',password=password,password_confirmation=password)
+    def test_public_signup_persists_private_workspace_and_session(self):
+        client=Client(self.port)
+        s,d=client.call('register','POST',self.registration())
+        self.assertEqual(s,201,d);client.csrf=d['csrf']
+        s,me=client.call('me');self.assertEqual(s,200)
+        self.assertEqual(me['user']['role'],'tenant_admin');self.assertEqual(me['tenant']['credits'],0)
+        self.assertEqual(me['tenant']['storage_mb'],100)
+        self.assertEqual(len(client.call('workspaces')[1]['workspaces']),1)
+        pid=self.project(client);self.assertEqual(self.a.call('projects/'+str(pid))[0],404)
+        self.assertEqual(client.call('admin/tenants')[0],403)
+        self.assertEqual(client.call('logout','POST',{})[0],200)
+        self.assertEqual(client.call('me')[0],401)
+        status,result=client.call('login','POST',dict(username='NEW-ARTIST',password=' signup-password-123 '))
+        self.assertEqual(status,200,result)
+    def test_signup_rejects_mismatch_and_duplicate_without_orphan_tenant(self):
+        client=Client(self.port)
+        with db.connect() as c:before=c.execute('SELECT count(*) FROM tenants').fetchone()[0]
+        data=self.registration('ALICE');s,_=client.call('register','POST',data);self.assertEqual(s,409)
+        data=self.registration('unused-artist');data['password_confirmation']='different'
+        self.assertEqual(client.call('register','POST',data)[0],400)
+        with db.connect() as c:self.assertEqual(c.execute('SELECT count(*) FROM tenants').fetchone()[0],before)
+    def test_signup_ignores_requested_admin_role_and_initial_credits(self):
+        client=Client(self.port);data=self.registration('bounded-artist');data.update(role='super_admin',credits=100000,tenant_id=1)
+        s,d=client.call('register','POST',data);self.assertEqual(s,201,d)
+        me=client.call('me')[1];self.assertEqual(me['user']['role'],'tenant_admin');self.assertNotEqual(me['tenant']['id'],1);self.assertEqual(me['tenant']['credits'],0)
+    def test_signup_requires_application_request_header(self):
+        req=urllib.request.Request(Client(self.port).base+'/api/register',data=json.dumps(self.registration()).encode(),headers={'Content-Type':'application/json'},method='POST')
+        with self.assertRaises(urllib.error.HTTPError) as caught:urllib.request.urlopen(req)
+        self.assertEqual(caught.exception.code,403)
+    def test_failed_login_limiter_is_scoped_to_client_and_username(self):
+        client=Client(self.port)
+        for _ in range(15):self.assertEqual(client.call('login','POST',dict(username='not-a-user',password='wrong-password'))[0],401)
+        self.assertEqual(client.call('login','POST',dict(username='not-a-user',password='wrong-password'))[0],429)
+        self.assertEqual(client.call('login','POST',dict(username='alice',password='test-password-123'))[0],200)
+    def test_password_spaces_from_invitation_survive_login(self):
+        _,invite=self.a.call('invitations','POST',dict(role='creator'))
+        client=Client(self.port);password=' invitation-password-123 '
+        s,d=client.call('accept-invitation','POST',dict(token=invite['token'],name='Space Artist',username='space-artist',password=password))
+        self.assertEqual(s,201,d)
+        self.assertEqual(client.call('login','POST',dict(username='space-artist',password=password))[0],200)
+        self.assertEqual(client.call('login','POST',dict(username='space-artist',password=password.strip()))[0],401)
+
 if __name__=='__main__':unittest.main()

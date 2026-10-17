@@ -1,0 +1,55 @@
+---
+- name: Update existing Africa Creativity account flows
+  hosts: all
+  become: true
+  gather_facts: false
+  vars:
+    creativity_install: /opt/africancreativity
+    creativity_port: 8096
+  tasks:
+    - name: Require existing database
+      ansible.builtin.stat:
+        path: '{{ creativity_install }}/data/creativity.db'
+      register: existing_database
+    - name: Require initialized application
+      ansible.builtin.assert:
+        that: existing_database.stat.exists
+        fail_msg: Run the main deployment before applying this update.
+    - name: Copy account API and browser fixes with backups
+      ansible.builtin.copy:
+        src: '{{ playbook_dir }}/../{{ item }}'
+        dest: '{{ creativity_install }}/{{ item }}'
+        owner: root
+        group: root
+        mode: '0644'
+        backup: true
+      loop: [server.py, database.py, static/index.html, static/app.js, static/style.css]
+      notify: Restart application
+    - name: Validate updated Python source without altering data
+      ansible.builtin.command:
+        argv: [python3, -c, "import ast,pathlib; [ast.parse(pathlib.Path(p).read_text()) for p in ['{{ creativity_install }}/server.py','{{ creativity_install }}/database.py']]"]
+      changed_when: false
+    - name: Apply restart
+      ansible.builtin.meta: flush_handlers
+    - name: Verify running application
+      ansible.builtin.uri:
+        url: 'http://127.0.0.1:{{ creativity_port }}/health'
+        status_code: 200
+      register: app_health
+      until: app_health.status | default(0) == 200
+      retries: 10
+      delay: 2
+      when: not ansible_check_mode
+    - name: Verify signup form is served
+      ansible.builtin.uri:
+        url: 'http://127.0.0.1:{{ creativity_port }}/'
+        status_code: 200
+        return_content: true
+      register: auth_page
+      failed_when: "'id=\"register-form\"' not in (auth_page.content | default(''))"
+      when: not ansible_check_mode
+  handlers:
+    - name: Restart application
+      ansible.builtin.systemd:
+        name: africancreativity
+        state: restarted

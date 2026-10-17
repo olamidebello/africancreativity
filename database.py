@@ -41,6 +41,11 @@ def init():
 
 def now():return time.time()
 def digest(s):return hashlib.sha256(s.encode()).hexdigest()
+def password_input(d):
+    p=d.get('password')
+    if not isinstance(p,str) or not 1<=len(p)<=256:raise Problem('Enter a password of at most 256 characters')
+    return p # Password spaces are significant; never use text() here.
+
 def hash_password(p):
     if not isinstance(p,str) or not 12<=len(p)<=256:raise Problem('Choose a password of 12–256 characters')
     salt=secrets.token_hex(16)

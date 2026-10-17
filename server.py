@@ -5,7 +5,7 @@ from urllib.parse import urlparse,parse_qs
 from http.cookies import SimpleCookie
 from contextlib import contextmanager
 from pathlib import Path
-import json,os,secrets,base64,mimetypes,sqlite3,re,io,zipfile,argparse,getpass
+import json,os,secrets,base64,mimetypes,sqlite3,re,io,zipfile,argparse,getpass,ipaddress
 import database as db,providers,jobs,media,addons
 from database import Problem
 
@@ -86,6 +86,30 @@ class Handler(BaseHTTPRequestHandler):
         return u
     def mutation(self,u):
         if not secrets.compare_digest(self.headers.get('X-CSRF-Token',''),u['csrf']):raise Problem('Session verification failed; reload and sign in',403)
+    def client_ip(self):
+        address=self.client_address[0]
+        # Only the local Nginx proxy may supply the client address. Its vhost
+        # overwrites X-Real-IP; never trust arbitrary forwarding chains.
+        if ipaddress.ip_address(address).is_loopback:
+            forwarded=self.headers.get('X-Real-IP','')
+            try:return str(ipaddress.ip_address(forwarded))
+            except ValueError:pass
+        return address
+    def throttle(self,c,key,limit,window):
+        c.execute('BEGIN IMMEDIATE')
+        lim=c.execute('SELECT * FROM login_limits WHERE ip=?',(key,)).fetchone()
+        if lim and db.now()-lim['started']<window and lim['attempts']>=limit:
+            raise Problem('Too many attempts. Please try again later.',429)
+        if not lim or db.now()-lim['started']>=window:
+            c.execute('INSERT OR REPLACE INTO login_limits VALUES(?,?,?)',(key,1,db.now()))
+        else:c.execute('UPDATE login_limits SET attempts=attempts+1 WHERE ip=?',(key,))
+        c.commit() # Failed attempts must survive rollback of the request.
+    def issue_session(self,c,u):
+        token=secrets.token_urlsafe(32);csrf=secrets.token_urlsafe(24)
+        c.execute('INSERT INTO sessions VALUES(?,?,?,?)',(db.digest(token),u['id'],db.now()+28800,csrf))
+        db.audit(c,u,'login','session')
+        cookie='session='+token+'; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800'+('; Secure' if os.environ.get('COOKIE_SECURE')=='1' else '')
+        return csrf,cookie
     def route(self,method):
         url=urlparse(self.path);path=url.path;qs=parse_qs(url.query)
         if path=='/health' and method=='GET':return self.send(200,{'status':'ok'})
@@ -96,21 +120,36 @@ class Handler(BaseHTTPRequestHandler):
         with self.request_database() as c:
             if path=='/api/login' and method=='POST':
                 if self.headers.get('X-Requested-With')!='AfricanCreativity':raise Problem('Invalid sign-in request',403)
-                d=self.input();name=db.text(d,'username',80);password=db.text(d,'password',256);ip=self.client_address[0]
-                c.execute('BEGIN IMMEDIATE');lim=c.execute('SELECT * FROM login_limits WHERE ip=?',(ip,)).fetchone()
-                if lim and db.now()-lim['started']<300 and lim['attempts']>=15:raise Problem('Too many attempts. Wait five minutes.',429)
-                if not lim or db.now()-lim['started']>=300:c.execute('INSERT OR REPLACE INTO login_limits VALUES(?,?,?)',(ip,1,db.now()))
-                else:c.execute('UPDATE login_limits SET attempts=attempts+1 WHERE ip=?',(ip,))
-                c.commit()
-                u=c.execute("SELECT u.* FROM users u LEFT JOIN tenants t ON t.id=u.tenant_id WHERE username=? AND u.active=1 AND (u.role='super_admin' OR t.status='active')",(name,)).fetchone()
+                d=self.input();name=db.text(d,'username',80);password=db.password_input(d)
+                key='login:'+self.client_ip()+':'+db.digest(name.casefold())
+                self.throttle(c,key,15,300)
+                rows=c.execute("SELECT u.* FROM users u LEFT JOIN tenants t ON t.id=u.tenant_id WHERE username=? COLLATE NOCASE AND u.active=1 AND (u.role='super_admin' OR t.status='active') ORDER BY username=? DESC",(name,name)).fetchall()
+                u=next((row for row in rows if row['username']==name),rows[0] if len(rows)==1 else None)
                 if not u or not db.check_password(password,u['password']):raise Problem('Invalid sign-in details',401)
-                token=secrets.token_urlsafe(32);csrf=secrets.token_urlsafe(24)
-                c.execute('INSERT INTO sessions VALUES(?,?,?,?)',(db.digest(token),u['id'],db.now()+28800,csrf));c.execute('DELETE FROM login_limits WHERE ip=?',(ip,));db.audit(c,u,'login','session')
-                cookie='session='+token+'; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800'+('; Secure' if os.environ.get('COOKIE_SECURE')=='1' else '')
+                c.execute('DELETE FROM login_limits WHERE ip=?',(key,))
+                csrf,cookie=self.issue_session(c,u)
                 return self.send(200,{'csrf':csrf},cookie)
+            if path=='/api/register' and method=='POST':
+                if self.headers.get('X-Requested-With')!='AfricanCreativity':raise Problem('Invalid registration request',403)
+                d=self.input();username=db.text(d,'username',80);name=db.text(d,'name',120)
+                if not re.fullmatch('[a-zA-Z0-9_.@-]{3,80}',username):raise Problem('Username must be 3–80 letters, digits or _.@-')
+                password=db.password_input(d)
+                if d.get('password_confirmation')!=password:raise Problem('Passwords do not match')
+                self.throttle(c,'register:'+self.client_ip(),5,3600)
+                hashed=db.hash_password(password)
+                c.execute('BEGIN IMMEDIATE')
+                if c.execute('SELECT 1 FROM users WHERE username=? COLLATE NOCASE',(username,)).fetchone():raise Problem('Username is unavailable. Choose another or sign in.',409)
+                slug='personal-'+secrets.token_hex(12)
+                tid=c.execute("INSERT INTO tenants(name,slug,plan,credits,storage_mb,created) VALUES(?,?,'starter',0,100,?)",(name+"’s workspace",slug,db.now())).lastrowid
+                uid=c.execute("INSERT INTO users(tenant_id,username,name,password,role,created) VALUES(?,?,?,?,'tenant_admin',?)",(tid,username,name,hashed,db.now())).lastrowid
+                c.execute('INSERT INTO workspaces(tenant_id,owner_id,name,created) VALUES(?,?,?,?)',(tid,uid,'My workspace',db.now()))
+                u=c.execute('SELECT * FROM users WHERE id=?',(uid,)).fetchone()
+                db.audit(c,u,'register','self-service workspace')
+                csrf,cookie=self.issue_session(c,u)
+                return self.send(201,{'csrf':csrf,'message':'Account and private workspace created.'},cookie)
             if path=='/api/accept-invitation' and method=='POST':
                 if self.headers.get('X-Requested-With')!='AfricanCreativity':raise Problem('Invalid request',403)
-                d=self.input();password=db.hash_password(db.text(d,'password',256));username=db.text(d,'username',80)
+                d=self.input();password=db.hash_password(db.password_input(d));username=db.text(d,'username',80)
                 if not re.fullmatch('[a-zA-Z0-9_.@-]{3,80}',username):raise Problem('Username must be 3–80 letters, digits or _.@-')
                 c.execute('BEGIN IMMEDIATE');inv=c.execute("SELECT i.* FROM invitations i JOIN tenants t ON t.id=i.tenant_id WHERE i.token=? AND used=0 AND expires>? AND t.status='active'",(db.digest(db.text(d,'token',200)),db.now())).fetchone()
                 if not inv:raise Problem('Invitation expired or unavailable',400)
