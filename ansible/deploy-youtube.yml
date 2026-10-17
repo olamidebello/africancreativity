@@ -1,0 +1,112 @@
+---
+- name: Update application and YouTube database schema with backups
+  ansible.builtin.import_playbook: deploy-admin.yml
+
+- name: Configure YouTube integration and data expiry
+  hosts: all
+  become: true
+  gather_facts: false
+  vars:
+    creativity_install: /opt/africancreativity
+    creativity_port: 8096
+    creativity_youtube_env_file: ''
+  tasks:
+    - name: Require safe installation path
+      ansible.builtin.assert:
+        that: creativity_install is match('^/opt/[A-Za-z0-9_-]+$')
+    - name: Ensure protected configuration directory
+      ansible.builtin.file:
+        path: /etc/africancreativity
+        state: directory
+        owner: root
+        group: root
+        mode: '0700'
+    - name: Install operator-supplied Google OAuth configuration
+      ansible.builtin.copy:
+        src: '{{ creativity_youtube_env_file }}'
+        dest: /etc/africancreativity/youtube.env
+        owner: root
+        group: root
+        mode: '0600'
+      when: creativity_youtube_env_file | length > 0
+      no_log: true
+      notify: Restart YouTube integration
+    - name: Ensure override directory
+      ansible.builtin.file:
+        path: /etc/systemd/system/africancreativity.service.d
+        state: directory
+        mode: '0755'
+    - name: Load optional protected OAuth credentials
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/africancreativity.service.d/youtube.conf
+        mode: '0644'
+        content: |
+          [Service]
+          EnvironmentFile=-/etc/africancreativity/youtube.env
+      notify: Restart YouTube integration
+    - name: Install data expiry helper
+      ansible.builtin.copy:
+        src: '{{ playbook_dir }}/../deploy/youtube_cleanup.py'
+        dest: '{{ creativity_install }}/deploy/youtube_cleanup.py'
+        owner: root
+        group: root
+        mode: '0644'
+    - name: Install daily YouTube metadata expiry service
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/africancreativity-youtube-cleanup.service
+        mode: '0644'
+        content: |
+          [Unit]
+          Description=Expire cached Africa Creativity YouTube API data
+          [Service]
+          Type=oneshot
+          User=africancreativity
+          Group=africancreativity
+          Environment=CREATIVITY_DATA={{ creativity_install }}/data
+          ExecStart=/usr/bin/python3 {{ creativity_install }}/deploy/youtube_cleanup.py
+          NoNewPrivileges=true
+          PrivateTmp=true
+          ProtectSystem=strict
+          ProtectHome=true
+          ReadWritePaths={{ creativity_install }}/data
+    - name: Install daily expiry timer
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/africancreativity-youtube-cleanup.timer
+        mode: '0644'
+        content: |
+          [Unit]
+          Description=Daily YouTube API data expiry
+          [Timer]
+          OnCalendar=daily
+          Persistent=true
+          [Install]
+          WantedBy=timers.target
+    - name: Enable daily expiry
+      ansible.builtin.systemd:
+        name: africancreativity-youtube-cleanup.timer
+        daemon_reload: true
+        enabled: true
+        state: started
+    - name: Apply OAuth configuration
+      ansible.builtin.meta: flush_handlers
+    - name: Verify service health
+      ansible.builtin.uri:
+        url: 'http://127.0.0.1:{{ creativity_port }}/health'
+        status_code: 200
+      register: youtube_health
+      until: youtube_health.status | default(0) == 200
+      retries: 15
+      delay: 2
+    - name: Verify YouTube status requires authentication
+      ansible.builtin.uri:
+        url: 'http://127.0.0.1:{{ creativity_port }}/api/youtube'
+        status_code: 401
+    - name: Explain channel authorization requirement
+      ansible.builtin.debug:
+        msg: 'YouTube GUI installed. Configure a Google OAuth web client, then each tenant creator must explicitly connect a channel. No live upload is run by this installer.'
+  handlers:
+    - name: Restart YouTube integration
+      ansible.builtin.systemd:
+        name: africancreativity
+        daemon_reload: true
+        state: restarted

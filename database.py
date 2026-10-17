@@ -34,6 +34,10 @@ def init():
         CREATE TABLE IF NOT EXISTS ledger(id INTEGER PRIMARY KEY,tenant_id INTEGER REFERENCES tenants(id),job_id INTEGER REFERENCES jobs(id),delta INTEGER NOT NULL,reason TEXT NOT NULL,created REAL NOT NULL,UNIQUE(job_id,reason));
         CREATE TABLE IF NOT EXISTS likes(user_id INTEGER REFERENCES users(id),project_id INTEGER REFERENCES projects(id),PRIMARY KEY(user_id,project_id));
         CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY,tenant_id INTEGER,actor_id INTEGER,action TEXT NOT NULL,resource TEXT NOT NULL,created REAL NOT NULL);
+        CREATE TABLE IF NOT EXISTS youtube_accounts(user_id INTEGER PRIMARY KEY REFERENCES users(id),tenant_id INTEGER NOT NULL REFERENCES tenants(id),channel_id TEXT NOT NULL,title TEXT NOT NULL,playlist TEXT NOT NULL,updated REAL NOT NULL);
+        CREATE TABLE IF NOT EXISTS youtube_oauth(state TEXT PRIMARY KEY,user_id INTEGER NOT NULL REFERENCES users(id),tenant_id INTEGER NOT NULL,csrf TEXT NOT NULL,verifier TEXT NOT NULL,expires REAL NOT NULL);
+        CREATE TABLE IF NOT EXISTS youtube_imports(id INTEGER PRIMARY KEY,user_id INTEGER NOT NULL REFERENCES users(id),tenant_id INTEGER NOT NULL REFERENCES tenants(id),video_id TEXT NOT NULL,title TEXT NOT NULL,channel_title TEXT NOT NULL,created REAL NOT NULL,UNIQUE(user_id,video_id));
+        CREATE TABLE IF NOT EXISTS youtube_exports(job_id INTEGER PRIMARY KEY REFERENCES jobs(id),user_id INTEGER NOT NULL REFERENCES users(id),tenant_id INTEGER NOT NULL REFERENCES tenants(id),asset_id INTEGER NOT NULL REFERENCES assets(id),channel_id TEXT NOT NULL,video_id TEXT,state TEXT NOT NULL,privacy TEXT NOT NULL,session_url TEXT,created REAL NOT NULL);
         CREATE TABLE IF NOT EXISTS login_limits(ip TEXT PRIMARY KEY,attempts INTEGER NOT NULL,started REAL NOT NULL);
         CREATE INDEX IF NOT EXISTS idx_users_tenant_role ON users(tenant_id,role,active);
         CREATE INDEX IF NOT EXISTS idx_assets_tenant_size ON assets(tenant_id,size);
@@ -43,6 +47,8 @@ def init():
         CREATE INDEX IF NOT EXISTS idx_audit_tenant ON audit(tenant_id,id);
 
         ''')
+        c.execute("UPDATE youtube_exports SET state='uncertain' WHERE state='uploading'")
+        c.execute("UPDATE youtube_exports SET state='failed' WHERE state='queued' AND job_id IN (SELECT id FROM jobs WHERE state NOT IN ('queued','running'))")
         # Interrupted jobs are refunded rather than replaying possibly charged provider requests.
         for j in c.execute("SELECT * FROM jobs WHERE state='running'").fetchall():
             refund(c,j,'Worker restarted; review before submitting again')
@@ -114,6 +120,7 @@ def row(p):
 def refund(c,j,error):
     changed=c.execute("UPDATE jobs SET state='failed',error=?,updated=? WHERE id=? AND state IN ('running','queued')",(error,now(),j['id'])).rowcount
     if changed:
+        c.execute("UPDATE youtube_exports SET state=CASE WHEN state='uploading' THEN 'uncertain' ELSE 'failed' END WHERE job_id=? AND state IN ('queued','uploading')",(j['id'],))
         c.execute('UPDATE tenants SET credits=credits+? WHERE id=?',(j['cost'],j['tenant_id']))
         c.execute('INSERT OR IGNORE INTO ledger(tenant_id,job_id,delta,reason,created) VALUES(?,?,?,?,?)',(j['tenant_id'],j['id'],j['cost'],'refund',now()))
 

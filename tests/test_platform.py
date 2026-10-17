@@ -88,6 +88,97 @@ class PlatformTest(unittest.TestCase):
             self.assertEqual(c.execute("SELECT count(*) FROM ledger WHERE job_id=? AND reason='refund'",(jid,)).fetchone()[0],1)
         events=self.admin.call('admin/audit')[1]['events'];self.assertTrue(any(x['action']=='platform.cancel.job' and x['resource']==str(jid) for x in events))
 
+    def test_youtube_status_scope_csrf_and_metadata_import(self):
+        import youtube_integration as yt
+        uid=self.a.call('me')[1]['user']['id']
+        with patch.dict(os.environ,{'YOUTUBE_CLIENT_ID':'client','YOUTUBE_CLIENT_SECRET':'secret','YOUTUBE_REDIRECT_URI':'https://creativity.example/api/youtube/callback'}):
+            self.assertEqual(self.admin.call('youtube')[0],403)
+            self.assertEqual(Client(self.port).call('youtube')[0],401)
+            with db.connect() as c:c.execute('INSERT OR REPLACE INTO youtube_accounts VALUES(?,?,?,?,?,?)',(uid,1,'UC_test','Test channel','UU_test',db.now()))
+            with patch.object(yt,'api',return_value={'items':[{'snippet':{'title':'Original video','channelTitle':'Test channel'}}]}):
+                status,d=self.a.call('youtube/import','POST',{'url':'https://youtu.be/Abcdef12345'});self.assertEqual(status,201,d)
+            self.assertEqual(len(self.a.call('youtube')[1]['imports']),1)
+            self.assertEqual(len(self.b.call('youtube')[1]['imports']),0)
+            reference=self.a.call('youtube')[1]['imports'][0]['id']
+            self.b.call('youtube/imports/'+str(reference),'DELETE')
+            self.assertEqual(len(self.a.call('youtube')[1]['imports']),1)
+            bad=Client(self.port).login('alice');bad.csrf='bad'
+            self.assertEqual(bad.call('youtube/import','POST',{'url':'Abcdef12345'})[0],403)
+            with patch.object(yt,'request') as provider:
+                self.assertEqual(self.a.call('youtube/import','POST',{'url':'http://127.0.0.1/private'})[0],400);provider.assert_not_called()
+            with patch.object(yt,'request',return_value=(200,{},b'')):
+                self.assertEqual(self.a.call('youtube/disconnect','DELETE')[0],200)
+            self.assertIsNone(self.a.call('youtube')[1]['account'])
+            self.assertFalse(self.a.call('youtube')[1]['imports'])
+
+    def test_youtube_oauth_state_is_single_use_and_session_bound(self):
+        import youtube_integration as yt
+        from urllib.parse import urlparse,parse_qs
+        uid=self.a.call('me')[1]['user']['id']
+        env={'YOUTUBE_CLIENT_ID':'client','YOUTUBE_CLIENT_SECRET':'secret','YOUTUBE_REDIRECT_URI':'https://creativity.example/api/youtube/callback'}
+        with patch.dict(os.environ,env):
+            self.assertEqual(self.a.call('youtube/connect','POST',{'accepted':False})[0],400)
+            status,d=self.a.call('youtube/connect','POST',{'accepted':True});self.assertEqual(status,200)
+            params=parse_qs(urlparse(d['url']).query);self.assertEqual(params['code_challenge_method'],['S256']);self.assertNotIn('client_secret',params)
+            with patch.object(yt,'json_request',side_effect=[{'access_token':'test-access','refresh_token':'test-refresh','expires_in':3600,'scope':yt.SCOPES},{'items':[{'id':'UC_test','snippet':{'title':'Test channel'},'contentDetails':{'relatedPlaylists':{'uploads':'UU_test'}}}]}]):
+                with db.connect() as c:yt.callback(c,{'state':params['state'],'code':['code']})
+            self.assertEqual(yt.token_path(uid).stat().st_mode & 0o777,0o600)
+            self.assertNotIn('access_token',json.dumps(self.a.call('youtube')[1]))
+            with self.assertRaises(db.Problem):
+                with db.connect() as c:yt.callback(c,{'state':params['state'],'code':['code']})
+            status,d=self.a.call('youtube/connect','POST',{'accepted':True})
+            params=parse_qs(urlparse(d['url']).query)
+            with db.connect() as c:c.execute('DELETE FROM sessions WHERE user_id=?',(uid,))
+            with patch.object(yt,'json_request') as provider:
+                with self.assertRaises(db.Problem):
+                    with db.connect() as c:yt.callback(c,{'state':params['state'],'code':['code']})
+                provider.assert_not_called()
+
+    def test_youtube_uncertain_upload_is_not_automatically_retried(self):
+        import youtube_integration as yt
+        uid=self.a.call('me')[1]['user']['id'];pid=self.project(kind='video')
+        path=media.newfile('mp4');path.write_bytes(b'original-video')
+        with db.connect() as c:
+            c.execute('INSERT OR REPLACE INTO youtube_accounts VALUES(?,?,?,?,?,?)',(uid,1,'UC_test','Test channel','UU_test',db.now()))
+            aid=c.execute("INSERT INTO assets(tenant_id,owner_id,project_id,name,path,kind,mime,size,created) VALUES(1,?,?,?,?,'video','video/mp4',?,?)",(uid,pid,'Uncertain video',path.name,path.stat().st_size,db.now())).lastrowid
+        payload=dict(asset_id=aid,title='Uncertain',description='',privacy='private',made_for_kids=False,rights_confirmed=True)
+        with patch.dict(os.environ,{'YOUTUBE_CLIENT_ID':'client','YOUTUBE_CLIENT_SECRET':'secret','YOUTUBE_REDIRECT_URI':'https://creativity.example/api/youtube/callback'}):
+            yt.save_token(uid,{'access_token':'test-access','expires_at':db.now()+3600})
+            status,d=self.a.call('jobs','POST',dict(project_id=pid,kind='youtube_upload',payload=payload));self.assertEqual(status,202,d)
+            with patch.object(yt,'request',side_effect=[(200,{'Location':'https://www.googleapis.com/upload/session'},b''),db.Problem('Network interrupted',502)]) as provider:
+                for _ in range(20):
+                    jobs.process_one()
+                    record=next(x for x in self.a.call('jobs')[1]['jobs'] if x['id']==d['id'])
+                    if record['state']!='queued':break
+                self.assertEqual(record['state'],'failed');self.assertEqual(provider.call_count,2)
+            self.assertEqual(self.a.call('youtube')[1]['exports'][0]['state'],'uncertain')
+            self.assertEqual(self.a.call('jobs','POST',dict(project_id=pid,kind='youtube_upload',payload=payload))[0],409)
+
+    def test_youtube_upload_queue_real_bytes_and_duplicate_guard(self):
+        import youtube_integration as yt
+        uid=self.a.call('me')[1]['user']['id'];pid=self.project(kind='video')
+        path=media.newfile('mp4');path.write_bytes(b'original-mp4-content')
+        with db.connect() as c:
+            c.execute('INSERT OR REPLACE INTO youtube_accounts VALUES(?,?,?,?,?,?)',(uid,1,'UC_test','Test channel','UU_test',db.now()))
+            aid=c.execute("INSERT INTO assets(tenant_id,owner_id,project_id,name,path,kind,mime,size,created) VALUES(1,?,?,?,?,'video','video/mp4',?,?)",(uid,pid,'Original video',path.name,path.stat().st_size,db.now())).lastrowid
+        payload=dict(asset_id=aid,title='A video',description='My description',privacy='private',made_for_kids=False,rights_confirmed=True)
+        with patch.dict(os.environ,{'YOUTUBE_CLIENT_ID':'client','YOUTUBE_CLIENT_SECRET':'secret','YOUTUBE_REDIRECT_URI':'https://creativity.example/api/youtube/callback'}):
+            self.assertEqual(self.a.call('jobs','POST',dict(project_id=pid,kind='youtube_upload',payload={**payload,'rights_confirmed':False}))[0],400)
+            status,d=self.a.call('jobs','POST',dict(project_id=pid,kind='youtube_upload',payload=payload));self.assertEqual(status,202,d)
+            self.assertEqual(self.a.call('jobs','POST',dict(project_id=pid,kind='youtube_upload',payload=payload))[0],409)
+            yt.save_token(uid,{'access_token':'test-access','refresh_token':'test-refresh','expires_at':db.now()+3600})
+            with patch.object(yt,'request',side_effect=[(200,{'Location':'https://www.googleapis.com/upload/session'},b''),(200,{},b'{"id":"Abcdef12345"}')]) as provider:
+                for _ in range(20):
+                    jobs.process_one()
+                    record=next(x for x in self.a.call('jobs')[1]['jobs'] if x['id']==d['id'])
+                    if record['state']!='queued':break
+                self.assertEqual(record['state'],'completed',record)
+                self.assertEqual(provider.call_args_list[1].args[1],b'original-mp4-content')
+                self.assertEqual(provider.call_args_list[0].args[1]['status']['privacyStatus'],'private')
+            self.assertEqual(self.a.call('youtube')[1]['exports'][0]['video_id'],'Abcdef12345')
+            self.assertFalse(self.b.call('youtube')[1]['exports'])
+            self.assertEqual(self.a.call('jobs','POST',dict(project_id=pid,kind='youtube_upload',payload=payload))[0],409)
+
     def test_tenant_isolation_and_platform_no_chart_access(self):
         p=self.project();self.assertEqual(self.b.call('projects/'+str(p))[0],404);self.assertEqual(self.admin.call('projects')[0],403)
         self.assertNotIn(p,[x['id'] for x in self.b.call('projects')[1]['projects']])

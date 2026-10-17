@@ -2,13 +2,14 @@
 import os,json,urllib.request,urllib.error,importlib.util,shutil,base64,time,re
 from database import Problem
 import engines
+import youtube_integration
 
 def capabilities():
     key=bool(os.environ.get('OPENAI_API_KEY'))
     mg=os.environ.get('MUSICGEN_ENABLED')=='1' and os.environ.get('MUSICGEN_LICENSE_ACCEPTED')=='1' and all(importlib.util.find_spec(m) is not None for m in ('transformers','torch','scipy'))
     dm=os.environ.get('DEMUCS_ENABLED')=='1' and importlib.util.find_spec('demucs') is not None
     selected=set(os.environ.get('MUSICGEN_MODELS','musicgen-small').split(','))
-    return dict(compose=bool(engines.enabled()),lyrics=key,prompt=key,storyboard=key,speech=key,music=mg,stems=dm,audio_edit=bool(shutil.which('ffmpeg')),video_render=bool(shutil.which('ffmpeg')),synth=True,
+    return dict(youtube=youtube_integration.configured(),compose=bool(engines.enabled()),lyrics=key,prompt=key,storyboard=key,speech=key,music=mg,stems=dm,audio_edit=bool(shutil.which('ffmpeg')),video_render=bool(shutil.which('ffmpeg')),synth=True,
                 singing=False,voice_cloning=False,custom_models=False,images=key,ai_motion_video=key and os.environ.get('VIDEO_AI_ENABLED')=='1',
                 models=[{'id':m,'name':name+' · instrumental · optional','ready':mg and m in selected} for m,name in [('musicgen-small','MusicGen Small'),('musicgen-medium','MusicGen Medium')]]+[{'id':'synth','name':'Local note synthesizer · not AI','ready':True}]+engines.catalog())
 

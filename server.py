@@ -183,6 +183,9 @@ class Handler(BaseHTTPRequestHandler):
                 a=c.execute("SELECT a.* FROM assets a JOIN projects p ON p.id=a.project_id JOIN tenants t ON t.id=p.tenant_id JOIN users u ON u.id=p.owner_id WHERE a.id=? AND p.trashed=0 AND t.status='active' AND u.active=1 AND (p.visibility='public' OR p.visibility='unlisted' AND p.share_token=?)",(aid,key)).fetchone()
                 if not a:raise Problem('Published media not found',404)
                 return self.binary(media.diskpath(a),a['mime'])
+            if path=='/api/youtube/callback' and method=='GET':
+                import youtube_integration as yt
+                yt.callback(c,qs);c.commit();self.send_response(303);self.headers_common();self.send_header('Location','/#youtube');self.end_headers();return
             u=self.user(c)
             if method!='GET':self.mutation(u)
             if path=='/api/me' and method=='GET':
@@ -196,6 +199,16 @@ class Handler(BaseHTTPRequestHandler):
                 hashed=db.hash_password(d.get('password'));c.execute('UPDATE users SET password=? WHERE id=?',(hashed,u['id']));c.execute('DELETE FROM sessions WHERE user_id=? AND csrf!=?',(u['id'],u['csrf']));return self.send(200,{'ok':True})
             if path.startswith('/api/admin/'):return self.admin(c,u,path,method)
             db.tenant_user(u)
+            if path.startswith('/api/youtube'):
+                import youtube_integration as yt
+                if path=='/api/youtube' and method=='GET':return self.send(200,yt.status(c,u))
+                if path=='/api/youtube/connect' and method=='POST':return self.send(200,{'url':yt.start(c,u,self.input().get('accepted'))})
+                if path=='/api/youtube/disconnect' and method=='DELETE':return self.send(200,yt.disconnect(c,u))
+                if path=='/api/youtube/import' and method=='POST':
+                    return self.send(201,yt.import_video(c,u,self.input().get('url')))
+                if re.fullmatch(r'/api/youtube/imports/\d+',path) and method=='DELETE':
+                    c.execute('DELETE FROM youtube_imports WHERE id=? AND user_id=? AND tenant_id=?',(int(path.split('/')[-1]),u['id'],u['tenant_id']));return self.send(200,{'ok':True})
+                raise Problem('Not found',404)
             if path=='/api/users' and method=='GET':
                 rows=c.execute('SELECT id,name,username,role,active FROM users WHERE tenant_id=?',(u['tenant_id'],)).fetchall();return self.send(200,{'users':[dict(r) for r in rows]})
             if path=='/api/invitations' and method=='POST':

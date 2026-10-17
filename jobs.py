@@ -1,9 +1,9 @@
 """Durable queue. A single worker claims jobs atomically and validates authorization at execution."""
 import json,threading,time,shutil,subprocess,tempfile,sys
 from pathlib import Path
-import database as db,providers,media,addons,engines
+import database as db,providers,media,addons,engines,youtube_integration as yt
 from database import Problem
-COSTS={'lyrics':1,'prompt':1,'storyboard':2,'speech':3,'music':10,'synth':0,'compose':0,'edit':0,'mix':0,'video':2,'stems':5,'export':0,'images':5,'ai_motion_video':20,'master':0,'arrange':0,'analyze':0}
+COSTS={'lyrics':1,'prompt':1,'storyboard':2,'speech':3,'music':10,'synth':0,'compose':0,'youtube_upload':0,'edit':0,'mix':0,'video':2,'stems':5,'export':0,'images':5,'ai_motion_video':20,'master':0,'arrange':0,'analyze':0}
 
 def validate_sources(c,u,kind,payload):
     ids=[]
@@ -18,7 +18,7 @@ def queue(c,u,d):
     if p['trashed']:raise Problem('Restore the project first')
     kind=d.get('kind');payload=d.get('payload',{})
     if kind not in COSTS or not isinstance(payload,dict) or len(json.dumps(payload))>100000:raise Problem('Invalid job')
-    caps=providers.capabilities();cap={'music':'music','stems':'stems','video':'video_render','edit':'audio_edit','mix':'audio_edit','export':'audio_edit','master':'audio_edit','arrange':'audio_edit','analyze':'audio_edit'}.get(kind,kind)
+    caps=providers.capabilities();cap={'youtube_upload':'youtube','music':'music','stems':'stems','video':'video_render','edit':'audio_edit','mix':'audio_edit','export':'audio_edit','master':'audio_edit','arrange':'audio_edit','analyze':'audio_edit'}.get(kind,kind)
     if not caps.get(cap):raise Problem('This engine is not configured. See Account → Engine status.',503)
     if kind in ('lyrics','prompt','storyboard'):
         payload={'prompt':db.text(payload,'prompt',6000 if kind!='storyboard' else 12000)}
@@ -28,6 +28,9 @@ def queue(c,u,d):
     if kind=='speech':
         payload={'text':db.text(payload,'text',4000),'voice':payload.get('voice','coral')}
         if payload['voice'] not in ('alloy','ash','coral','echo','fable','nova','onyx','sage','shimmer'):raise Problem('Unsupported voice')
+    if kind=='youtube_upload':
+        payload=yt.validate_upload(c,u,payload)
+        if db.asset(c,u,payload['asset_id'])['project_id']!=p['id']:raise Problem('Asset belongs to a different project',403)
     if kind=='compose':
         payload=engines.validate(payload)
         if payload['engine'] not in engines.enabled():raise Problem('Selected local engine is not enabled',503)
@@ -45,6 +48,7 @@ def queue(c,u,d):
     cost=COSTS[kind]
     if not c.execute("UPDATE tenants SET credits=credits-? WHERE id=? AND credits>=? AND status='active'",(cost,u['tenant_id'],cost)).rowcount:raise Problem('Insufficient tenant credits',402)
     jid=c.execute('INSERT INTO jobs(tenant_id,user_id,project_id,kind,payload,cost,created,updated) VALUES(?,?,?,?,?,?,?,?)',(u['tenant_id'],u['id'],p['id'],kind,json.dumps(payload),cost,db.now(),db.now())).lastrowid
+    if kind=='youtube_upload':yt.reserve_upload(c,u,payload,jid)
     c.execute('INSERT INTO ledger(tenant_id,job_id,delta,reason,created) VALUES(?,?,?,?,?)',(u['tenant_id'],jid,-cost,'reserve',db.now()))
     db.audit(c,u,'queue.'+kind,jid);return jid
 
@@ -63,6 +67,7 @@ def execute(j,u):
         if expected and a['kind']!=expected:raise Problem('Wrong media type')
         return media.diskpath(a)
     try:
+        if kind=='youtube_upload':return yt.upload(j,u,p),[]
         if kind in ('lyrics','prompt','storyboard'):return {'text':providers.assist(kind,p['prompt'])},[]
         if kind=='analyze':return {'text':addons.analyze(source(p.get('asset_id'),'audio'))},[]
         if kind=='master':

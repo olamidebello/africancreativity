@@ -316,3 +316,61 @@ ansible-playbook -i localhost, -c local /root/africancreativity/ansible/promote-
 Alternatively pass the same email extra variable to `build-creation-engines.yml` to
 build engines and promote the account in one invocation. Sign in again after promotion.
 No account is created if the email does not match; disabled accounts are rejected.
+
+## YouTube import and export
+
+Creators have a **YouTube** sidebar destination and **Publish to YouTube** actions on
+MP4 assets. Each creator connects their own channel through Google OAuth; platform
+administrators do not impersonate tenant publishers.
+
+- Publish a rendered/uploaded MP4 with a user-controlled title (100 characters),
+  description (5,000), visibility (private by default), audience choice and rights consent.
+- Uploads run as zero-credit queued jobs with chunked YouTube resumable requests.
+  Tenant authorization is checked before each chunk. A lost acknowledgement is marked
+  **uncertain**, blocks duplicate uploads of the same asset/channel and requires review
+  in YouTube Studio; the worker does not blindly replay external writes.
+- History links to successful YouTube uploads. Provider errors are sanitized.
+- Import a YouTube video link/ID as a saved title/link reference. No audiovisual
+  downloading or ripping is implemented. Use the original file in Library for editing.
+- Disconnect revokes access when Google is reachable, always deletes local tokens and
+  imported references, and provides a Google permissions link for manual revocation.
+  YouTube videos already published are never deleted by disconnecting.
+
+Deploy the code and scheduled metadata expiry:
+
+```bash
+git -C /root/africancreativity pull --ff-only origin main && ansible-playbook -i localhost, -c local /root/africancreativity/ansible/deploy-youtube.yml
+```
+
+Direct publishing requires a real Google Cloud OAuth web client:
+1. Enable **YouTube Data API v3** in your Google Cloud project.
+2. Configure your OAuth consent screen, production privacy/support contacts and any
+   required app verification. In testing mode, add intended Google accounts as test users.
+3. Register exactly `https://africancreativity.io/api/youtube/callback` as a web redirect URI.
+4. Copy `deploy/youtube.env.example` to a protected `/root/youtube.env` on the server,
+   fill its client ID/secret, and keep it out of Git. Apply:
+   `ansible-playbook -i localhost, -c local /root/africancreativity/ansible/deploy-youtube.yml -e creativity_youtube_env_file=/root/youtube.env`
+5. As a tenant creator, open YouTube, accept the displayed terms/privacy notice and
+   connect the intended channel. Approve upload and read permissions. Review a private
+   test upload in YouTube Studio before using public publishing.
+
+Client secrets are loaded from root-only `/etc/africancreativity/youtube.env`.
+Refresh/access tokens are stored in per-user 0600 files inside protected application
+data, never returned by APIs. Include these in the operator's secret-management and
+backup policy. OAuth state is single-use, ten-minute, tied to the initiating live app
+session, and uses PKCE; callback processing does not depend on a cross-site session cookie.
+Disconnect, disabled accounts and local connection expiry remove local credentials.
+A daily systemd timer expires reference metadata, finished history and associated
+job API results after 30 days; connections expire locally after 30 days and can be
+reconnected. Audit records contain internal event identifiers, not Google credentials.
+Configure reverse-proxy logs to omit OAuth callback query strings.
+
+Live Google consent, quota, channel permissions and uploads require operator credentials
+and an actual authorized channel. Automated tests mock Google responses and validate
+tenant boundaries, callback replay, session binding, exact upload bytes and duplicate guards;
+they do not claim a live YouTube publish.
+
+Official references:
+https://developers.google.com/youtube/data/guides/using_resumable_upload_protocol
+https://developers.google.com/identity/protocols/oauth2/web-server
+https://developers.google.com/youtube/terms/developer-policies
