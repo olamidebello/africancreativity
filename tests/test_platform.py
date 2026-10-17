@@ -1,7 +1,7 @@
 import unittest,tempfile,threading,json,urllib.request,urllib.error,http.cookiejar,base64,wave,io,os,time
 from pathlib import Path
 from unittest.mock import patch
-import sys
+import sys,sqlite3
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 import database as db,server,jobs,media,providers
 from http.server import ThreadingHTTPServer
@@ -45,6 +45,24 @@ class PlatformTest(unittest.TestCase):
         self.assertNotIn(p,[x['id'] for x in self.b.call('projects')[1]['projects']])
     def test_csrf_and_get_mutation_denial(self):
         c=Client(self.port).login('alice');c.csrf='bad';self.assertEqual(c.call('projects','POST',dict(title='bad'))[0],403);self.assertEqual(c.call('logout')[0],404)
+    def test_committed_state_is_visible_before_success_response(self):
+        # Delay the context-manager commit so a response-before-commit race is deterministic.
+        class DelayedExit(sqlite3.Connection):
+            def __exit__(self,*args):
+                time.sleep(.08)
+                return super().__exit__(*args)
+        def delayed_connect():
+            c=sqlite3.connect(db.DB,timeout=20,factory=DelayedExit)
+            c.row_factory=sqlite3.Row;c.execute('PRAGMA foreign_keys=ON');return c
+        with patch.object(db,'connect',side_effect=delayed_connect):
+            pid=self.project()
+            self.assertEqual(self.a.call('projects/'+str(pid))[0],200)
+            aid=self.upload(pid)
+            self.assertEqual(self.a.call('media/'+str(aid))[0],200)
+            status,result=self.patch(pid,title='Committed title')
+            self.assertEqual(status,200,result)
+            self.assertEqual(self.a.call('projects/'+str(pid),'PATCH',dict(version=1,title='Stale edit'))[0],409)
+
     def test_stale_version(self):
         p=self.project();self.patch(p,title='Changed');self.assertEqual(self.a.call('projects/'+str(p),'PATCH',dict(title='Stale',version=1))[0],409)
     def test_upload_permission_and_media_range(self):

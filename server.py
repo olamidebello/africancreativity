@@ -3,6 +3,7 @@
 from http.server import ThreadingHTTPServer,BaseHTTPRequestHandler
 from urllib.parse import urlparse,parse_qs
 from http.cookies import SimpleCookie
+from contextlib import contextmanager
 from pathlib import Path
 import json,os,secrets,base64,mimetypes,sqlite3,re,io,zipfile,argparse,getpass
 import database as db,providers,jobs,media,addons
@@ -11,6 +12,21 @@ from database import Problem
 class Handler(BaseHTTPRequestHandler):
     server_version='AfricanCreativity'
     def log_message(self,fmt,*args):pass # Never log invitation/share query tokens.
+    @contextmanager
+    def request_database(self):
+        with db.connect() as c:
+            self.response_database=c
+            try:
+                yield c
+            finally:
+                self.response_database=None
+    def send_response(self,code,message=None):
+        # A successful response is a durability boundary. Never acknowledge an
+        # upload, edit, invitation or credit reservation before it is committed.
+        c=getattr(self,'response_database',None)
+        if 200<=code<400 and c is not None:
+            c.commit()
+        return super().send_response(code,message)
     def send(self,status,data,cookie=None):
         raw=json.dumps(data).encode();self.send_response(status);self.headers_common();self.send_header('Content-Type','application/json');self.send_header('Content-Length',str(len(raw)))
         if cookie:self.send_header('Set-Cookie',cookie)
@@ -77,7 +93,7 @@ class Handler(BaseHTTPRequestHandler):
             files={'/':'index.html','/logo.jpg':'logo.jpg','/app.js':'app.js','/style.css':'style.css','/studio.js':'studio.js','/help':'help.html','/terms':'terms.html','/privacy':'privacy.html'}
             if method!='GET' or path not in files:raise Problem('Not found',404)
             f=db.ROOT/'static'/files[path];return self.binary(f,mimetypes.guess_type(f)[0] or 'text/plain')
-        with db.connect() as c:
+        with self.request_database() as c:
             if path=='/api/login' and method=='POST':
                 if self.headers.get('X-Requested-With')!='AfricanCreativity':raise Problem('Invalid sign-in request',403)
                 d=self.input();name=db.text(d,'username',80);password=db.text(d,'password',256);ip=self.client_address[0]
@@ -186,7 +202,9 @@ class Handler(BaseHTTPRequestHandler):
                     if vis not in ('private','unlisted','public') or remix not in (0,1) or trash not in (0,1):raise Problem('Invalid publication settings')
                     if (vis!=p['visibility'] or remix!=p['allow_remix'] or trash!=p['trashed']) and u['role']!='tenant_admin' and p['owner_id']!=u['id']:raise Problem('Only the owner can publish or trash a project',403)
                     token=(p['share_token'] or secrets.token_urlsafe(24)) if vis=='unlisted' else None
-                    c.execute('UPDATE projects SET title=?,body=?,workspace_id=?,visibility=?,share_token=?,allow_remix=?,trashed=?,version=version+1,updated=? WHERE id=? AND version=?',(title,json.dumps(b),wid,vis,token,remix,trash,db.now(),pid,p['version']));db.audit(c,u,'update.project',pid);return self.send(200,{'version':p['version']+1,'share_token':token})
+                    changed=c.execute('UPDATE projects SET title=?,body=?,workspace_id=?,visibility=?,share_token=?,allow_remix=?,trashed=?,version=version+1,updated=? WHERE id=? AND version=?',(title,json.dumps(b),wid,vis,token,remix,trash,db.now(),pid,p['version'])).rowcount
+                    if changed!=1:raise Problem('Project changed. Reload before saving.',409)
+                    db.audit(c,u,'update.project',pid);return self.send(200,{'version':p['version']+1,'share_token':token})
                 if method=='DELETE':
                     if not p['trashed']:raise Problem('Move to Trash before permanent deletion')
                     if u['role']!='tenant_admin' and p['owner_id']!=u['id']:raise Problem('Only the owner can delete',403)
