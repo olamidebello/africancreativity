@@ -1,0 +1,145 @@
+---
+- name: Prepare unattended deployment on a new server
+  hosts: all
+  become: true
+  tasks:
+    - name: Require a supported server
+      ansible.builtin.assert:
+        that:
+          - ansible_os_family == 'Debian'
+          - ansible_service_mgr == 'systemd'
+        fail_msg: Use a Debian or Ubuntu server running systemd.
+    - name: Create protected configuration directory
+      ansible.builtin.file:
+        path: /etc/africancreativity
+        state: directory
+        owner: root
+        group: root
+        mode: '0700'
+    - name: Generate initial administrator password once
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/python3
+          - -c
+          - |
+            import os, secrets
+            path = '/etc/africancreativity/bootstrap-password'
+            if not os.path.exists(path):
+                fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+                with os.fdopen(fd, 'w') as output:
+                    output.write(secrets.token_urlsafe(32) + '\n')
+                print('created')
+      register: password_creation
+      changed_when: "'created' in password_creation.stdout"
+      no_log: true
+      when: creativity_admin_password is not defined
+    - name: Read saved initial administrator password
+      ansible.builtin.slurp:
+        src: /etc/africancreativity/bootstrap-password
+      register: saved_password
+      no_log: true
+      when: creativity_admin_password is not defined
+    - name: Supply password to existing deployment playbook
+      ansible.builtin.set_fact:
+        creativity_admin_password: '{{ saved_password.content | b64decode | trim }}'
+      no_log: true
+      when: creativity_admin_password is not defined
+
+- name: Deploy application with existing backup and health checks
+  ansible.builtin.import_playbook: deploy.yml
+
+- name: Publish application through Nginx and HTTPS
+  hosts: all
+  become: true
+  vars:
+    creativity_domain: africancreativity.io
+    creativity_port: 8096
+    creativity_tls: true
+  tasks:
+    - name: Validate public configuration
+      ansible.builtin.assert:
+        that:
+          - creativity_domain is match('^[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?$')
+          - "'.' in creativity_domain"
+          - creativity_port | int >= 1024
+          - creativity_port | int <= 65535
+    - name: Install web gateway and certificate tools
+      ansible.builtin.apt:
+        name: [nginx, certbot, python3-certbot-nginx]
+        state: present
+        update_cache: true
+    - name: Enable Nginx
+      ansible.builtin.systemd:
+        name: nginx
+        state: started
+        enabled: true
+    - name: Check for existing managed gateway
+      ansible.builtin.stat:
+        path: /etc/nginx/sites-available/africancreativity
+      register: existing_gateway
+    - name: Install initial HTTP gateway without overwriting existing TLS
+      ansible.builtin.copy:
+        dest: /etc/nginx/sites-available/africancreativity
+        mode: '0644'
+        content: |
+          server {
+              listen 80;
+              server_name {{ creativity_domain }};
+              client_max_body_size 28m;
+              location / {
+                  proxy_pass http://127.0.0.1:{{ creativity_port }};
+                  proxy_http_version 1.1;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+                  proxy_read_timeout 180s;
+              }
+          }
+      when: not existing_gateway.stat.exists
+    - name: Enable site
+      ansible.builtin.file:
+        src: /etc/nginx/sites-available/africancreativity
+        dest: /etc/nginx/sites-enabled/africancreativity
+        state: link
+    - name: Validate complete Nginx configuration
+      ansible.builtin.command: nginx -t
+      changed_when: false
+    - name: Reload gateway
+      ansible.builtin.systemd:
+        name: nginx
+        state: reloaded
+    - name: Obtain or reuse certificate and enforce HTTPS
+      ansible.builtin.command:
+        argv:
+          - certbot
+          - --nginx
+          - --non-interactive
+          - --agree-tos
+          - --register-unsafely-without-email
+          - --redirect
+          - --keep-until-expiring
+          - -d
+          - '{{ creativity_domain }}'
+      when: creativity_tls | bool
+    - name: Enable automatic certificate renewal
+      ansible.builtin.systemd:
+        name: certbot.timer
+        state: started
+        enabled: true
+      when: creativity_tls | bool
+    - name: Verify published application from the server
+      ansible.builtin.uri:
+        url: "{{ (creativity_tls | bool) | ternary('https', 'http') }}://{{ creativity_domain }}/health"
+        status_code: 200
+      register: public_health
+      until: public_health.status | default(0) == 200
+      retries: 5
+      delay: 3
+    - name: Report deployment
+      ansible.builtin.debug:
+        msg: >-
+          Deployment verified. Initial generated password is stored at
+          /etc/africancreativity/bootstrap-password (root only).
+          Existing account passwords are preserved. DNS and inbound ports 80/443
+          must point to this server. Optional AI engines need separate provisioning.
