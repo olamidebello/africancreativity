@@ -197,6 +197,9 @@ class Handler(BaseHTTPRequestHandler):
                 d=self.input()
                 if not db.check_password(d.get('current',''),u['password']):raise Problem('Current password is incorrect',403)
                 hashed=db.hash_password(d.get('password'));c.execute('UPDATE users SET password=? WHERE id=?',(hashed,u['id']));c.execute('DELETE FROM sessions WHERE user_id=? AND csrf!=?',(u['id'],u['csrf']));return self.send(200,{'ok':True})
+            if path.startswith(('/api/commerce', '/api/marketplace')):
+                import commerce
+                return commerce.route(self,c,u,path,method)
             if path.startswith('/api/admin/'):return self.admin(c,u,path,method)
             db.tenant_user(u)
             if path.startswith('/api/youtube'):

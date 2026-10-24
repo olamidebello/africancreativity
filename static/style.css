@@ -8,3 +8,5 @@
 
 /* Keep the full administration menu reachable on short screens. */
 aside{overflow-y:auto}#navigation{flex-shrink:0}
+
+.market-content{white-space:pre-wrap;overflow-wrap:anywhere;max-height:28rem;overflow:auto;font:inherit;padding:1rem;border:1px solid currentColor;border-radius:12px}

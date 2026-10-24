@@ -92,7 +92,7 @@
             owner: root
             group: root
             mode: '0644'
-          loop: [server.py, database.py, providers.py, open_engines.py, jobs.py, media.py, addons.py, engines.py, youtube_integration.py]
+          loop: [server.py, database.py, providers.py, open_engines.py, jobs.py, media.py, addons.py, engines.py, youtube_integration.py, commerce.py]
         - name: Install browser assets and bootstrap helper
           ansible.builtin.copy:
             src: '{{ creativity_source }}/{{ item }}/'
@@ -162,6 +162,7 @@
               Environment=COOKIE_SECURE={{ creativity_secure_cookie | ternary('1','0') }}
               Environment=HF_HOME={{ creativity_install }}/data/model-cache
               EnvironmentFile=-/etc/africancreativity/ai.env
+              EnvironmentFile=-/etc/africancreativity/payments.env
               ExecStart=/usr/bin/python3 {{ creativity_install }}/server.py --host 127.0.0.1 --port {{ creativity_port }}
               Restart=on-failure
               RestartSec=5

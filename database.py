@@ -47,6 +47,8 @@ def init():
         CREATE INDEX IF NOT EXISTS idx_audit_tenant ON audit(tenant_id,id);
 
         ''')
+        import commerce
+        commerce.init(c)
         c.execute("UPDATE youtube_exports SET state='uncertain' WHERE state='uploading'")
         c.execute("UPDATE youtube_exports SET state='failed' WHERE state='queued' AND job_id IN (SELECT id FROM jobs WHERE state NOT IN ('queued','running'))")
         # Interrupted jobs are refunded rather than replaying possibly charged provider requests.

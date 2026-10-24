@@ -385,3 +385,9 @@ Official references:
 https://developers.google.com/youtube/data/guides/using_resumable_upload_protocol
 https://developers.google.com/identity/protocols/oauth2/web-server
 https://developers.google.com/youtube/terms/developer-policies
+
+## Tenant billing and creator marketplace
+
+See [commerce setup and feature guide](docs/commerce.md) for Stripe, Paystack,
+Flutterwave, one-time credit packages, tenant purchase history, and moderated
+text-content marketplace. Deploy with [the new-server playbook](docs/new-server-deployment.md).
